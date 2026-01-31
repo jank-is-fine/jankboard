@@ -1,4 +1,4 @@
-![splash](https://gist.github.com/user-attachments/assets/2277e581-aa79-4dac-a1dc-33dbd31d8b7c) 
+<img width="1920" height="1033" alt="jankboard-splash" src="https://github.com/user-attachments/assets/8718faff-f3fb-4443-aaa8-87595afba0ce" />
 
 # How to run
 
@@ -45,11 +45,11 @@ dotnet publish -c Release -r <OS>
 
 # Features
 
-![ImageResizing](https://gist.github.com/user-attachments/assets/e7f5af19-7a27-452b-8b02-be2bd0c0b326) 
+![ImageResizing](https://github.com/user-attachments/assets/a3752e88-6f92-496f-8181-fac65f746bfd)
 
-![GifAndImageSupport](https://gist.github.com/user-attachments/assets/3705f47b-2808-438f-b347-567b09f9dc1c)
+![GifAndImageSupport](https://github.com/user-attachments/assets/2406bd43-1733-4dfd-8371-a85c16f7fd83)
 
-![nesting](https://gist.github.com/user-attachments/assets/6a9f7191-4a0b-4eb6-a1a9-04bf2da19663)
+![nesting](https://github.com/user-attachments/assets/4c2311f5-83b2-4096-88b9-93d926318c49)
 
 
 # Final words
@@ -78,7 +78,8 @@ I used [msdf-atlas-gen](https://github.com/Chlumsky/msdf-atlas-gen) , the comman
 `msdf-atlas-gen -font source -charset charset.txt -type mtsdf -size <size> -pxrange <pxrange> -imageout output.png -json output.json -yorigin top -pots`
 where you can tweak pxrange and size.
 
-![hampter](https://gist.github.com/user-attachments/assets/c48e04e7-51f3-4ba4-8c65-52d8797bb1eb)
+![hampter](https://github.com/user-attachments/assets/ea52952c-8fd8-49ca-994f-0741d20b9705)
+
 Have fun.
 
 
