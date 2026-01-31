@@ -1,4 +1,5 @@
-<img width="1920" height="1033" alt="jankboard-splash" src="https://github.com/user-attachments/assets/8718faff-f3fb-4443-aaa8-87595afba0ce" />
+<img width="800" height="430" alt="jankboard-splash" src="https://github.com/user-attachments/assets/bb7f4798-ea29-4778-85a8-ca1d7154c754" />
+
 
 # How to run
 
@@ -47,7 +48,7 @@ dotnet publish -c Release -r <OS>
 
 ![ImageResizing](https://github.com/user-attachments/assets/a3752e88-6f92-496f-8181-fac65f746bfd)
 
-![GifAndImageSupport](https://github.com/user-attachments/assets/2406bd43-1733-4dfd-8371-a85c16f7fd83)
+![GifAndImageSupport](https://github.com/user-attachments/assets/72a27506-512a-43cb-9b89-4ac52b729480)
 
 ![nesting](https://github.com/user-attachments/assets/4c2311f5-83b2-4096-88b9-93d926318c49)
 
@@ -78,7 +79,7 @@ I used [msdf-atlas-gen](https://github.com/Chlumsky/msdf-atlas-gen) , the comman
 `msdf-atlas-gen -font source -charset charset.txt -type mtsdf -size <size> -pxrange <pxrange> -imageout output.png -json output.json -yorigin top -pots`
 where you can tweak pxrange and size.
 
-![hampter](https://github.com/user-attachments/assets/ea52952c-8fd8-49ca-994f-0741d20b9705)
+![hampter](https://github.com/user-attachments/assets/adee002d-cd61-433e-8d9d-3e82efc148c8)
 
 Have fun.
 
