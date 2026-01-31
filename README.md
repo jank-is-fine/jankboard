@@ -3,7 +3,7 @@
 
 # How to run
 
-If you want to try out Jankboard, you can go to the releases page and download the executable for your OS.  
+If you want to try out Jankboard, you can go to the [releases](https://github.com/jank-is-fine/jankboard/releases) page and download the executable for your OS.  
 **Note:** This has not been tested on macOS at all. Windows has been tested only a little, and Linux is the only platform that’s actually been tested thoroughly.
 
 # Setup
