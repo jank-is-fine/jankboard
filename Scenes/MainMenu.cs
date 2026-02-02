@@ -66,7 +66,7 @@ public class MainMenuScene : Scene
 
         SaveList = new UIScrollableObjectList(10f)
         {
-            TextureColor = Color.FromArgb(128,143,143,143),
+            TextureColor = Color.FromArgb(128, 143, 143, 143),
             IsScreenSpace = true,
             IsDraggable = false
         };
@@ -84,7 +84,7 @@ public class MainMenuScene : Scene
         List<string> saves = SaveManager.GetAllSaves();
         foreach (string save in saves)
         {
-            var newSaveButton = new UIButton($"  {Path.GetFileNameWithoutExtension(save)}", [() => LoadSave(save)],textAnchorPoint: TextAnchorPoint.Left_Center)
+            var newSaveButton = new UIButton($"  {Path.GetFileNameWithoutExtension(save)}", [() => LoadSave(save)], textAnchorPoint: TextAnchorPoint.Left_Center)
             {
                 IsDraggable = false,
             };
@@ -148,10 +148,10 @@ public class MainMenuScene : Scene
 
         SaveList.RecalcLayout();
 
-        ShowSettingsButton.Transform.Scale = new(32f,32f);
+        ShowSettingsButton.Transform.Scale = new(32f, 32f);
         ShowSettingsButton.Transform.Position = new(
-            viewportSize.X - 12f - ShowSettingsButton.Transform.Scale.X/2f ,
-            12f + ShowSettingsButton.Transform.Scale.Y/2f
+            viewportSize.X - 12f - ShowSettingsButton.Transform.Scale.X / 2f,
+            12f + ShowSettingsButton.Transform.Scale.Y / 2f
         );
     }
 
@@ -222,6 +222,7 @@ public class MainMenuScene : Scene
         TextRenderer.Clear();
         foreach (var obj in Children)
         {
+            if (obj == null) { continue; }
             obj.Render();
             foreach (var child in UIobjectHandler.GetAllChildren(obj).Where(x => x.IsVisible))
             {
@@ -268,6 +269,7 @@ public class MainMenuScene : Scene
     {
         foreach (var obj in Children)
         {
+            if (obj == null) { continue; }
             obj.Dispose();
         }
         UnsubActions();

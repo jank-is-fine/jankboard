@@ -18,17 +18,20 @@ namespace Managers
         public static Action<Guid>? LayerLoaded;
         private static bool LayerLoadingError = false;
 
-        public static InputField inputField = new()
-        {
-            TextureColor = Settings.InputfieldBackgroundColor,
-            RenderOrder = 5,
-            IsVisible = false,
-        };
+        public static InputField? inputField;
 
         public static void Init()
         {
             CurrentParentEntry = Guid.Empty;
             entries = [];
+
+            inputField = new()
+            {
+                TextureColor = Settings.InputfieldBackgroundColor,
+                RenderOrder = 5,
+                IsVisible = false,
+            };
+
             inputField.Transform.Position = new(5000, 5000);
 
             inputField.SubmitAction += EndEditing;
@@ -42,16 +45,22 @@ namespace Managers
                 EndEditing();
             }
 
-            entry.StartEditing();
             CurrentlyEditingEntry = entry;
+            entry.StartEditing();
+
+            if (inputField == null) { return; }
+
             inputField.SetText(entry.ReferenceEntry.Content);
             inputField.OnClick();
-            inputField.Transform.Position = entry.Transform.Position;
             inputField.IsVisible = true;
+
+            inputField.RecalcSize();
+            inputField.Transform.Position = entry.Transform.Position;
         }
 
         public static void EndEditing()
         {
+            if (inputField == null) { return; }
             CurrentlyEditingEntry?.EndEditing(inputField.Content);
 
             CurrentlyEditingEntry = null;
@@ -64,6 +73,9 @@ namespace Managers
             CurrentlyEditingEntry?.EndEditing();
 
             CurrentlyEditingEntry = null;
+
+            if (inputField == null) { return; }
+
             inputField.IsVisible = false;
             inputField.Transform.Position = new(5000, 5000);
         }
@@ -388,6 +400,8 @@ namespace Managers
             {
                 ui.Value.Item2?.Dispose();
             }
+
+            if (inputField == null) { return; }
             inputField.SubmitAction -= EndEditing;
             inputField.Dispose();
         }

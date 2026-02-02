@@ -11,7 +11,7 @@ public class MainScene : Scene
     public Toolbar toolbar = new(WindowManager.window);
 
     //Behold the fucked list aggregation
-    public override List<UIObject> Children =>
+    public override List<UIObject?> Children =>
     [
         .. toolbar.uIButtons,
         .. ContextMenu.Instance.Options,
@@ -123,8 +123,8 @@ public class MainScene : Scene
     {
         TextRenderer.Clear();
         MarqueeHandler.MarqueeRect.Render();
-        EntryManager.inputField.Render();
-        GroupManager.inputField.Render();
+        EntryManager.inputField?.Render();
+        GroupManager.inputField?.Render();
         BreadcrumbNav.Render();
         TextRenderer.Draw();
 
@@ -405,8 +405,8 @@ public class MainScene : Scene
 
     public override void UnsubActions()
     {
-        EntryManager.inputField.UnsubActions();
-        GroupManager.inputField.UnsubActions();
+        EntryManager.inputField?.UnsubActions();
+        GroupManager.inputField?.UnsubActions();
 
         if (InputDeviceHandler.primaryMouse != null)
         {
@@ -429,8 +429,8 @@ public class MainScene : Scene
     public override void SubActions()
     {
         //Camera.ResetView();
-        EntryManager.inputField.SubActions();
-        GroupManager.inputField.SubActions();
+        EntryManager.inputField?.SubActions();
+        GroupManager.inputField?.SubActions();
 
         if (InputDeviceHandler.primaryMouse != null)
         {

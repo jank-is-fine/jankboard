@@ -58,13 +58,14 @@ public static class UIobjectHandler
     {
         var screenPos = targetPos ?? Mouse.Position;
         var worldPos = Camera.ScreenToWorld(screenPos);
-        
+
         elements.Clear();
         screenSpaceElements.Clear();
         worldSpaceElements.Clear();
 
-        foreach (var o in RenderManager.CurrentScene.Children.Where(x => x.IsVisible))
+        foreach (var o in RenderManager.CurrentScene.Children.Where(x => x != null && x.IsVisible))
         {
+            if (o == null) { continue; }
             elements.Add(o);
             elements.AddRange(GetAllChildren(o));
         }

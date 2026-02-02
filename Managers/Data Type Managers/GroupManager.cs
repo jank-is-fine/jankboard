@@ -14,16 +14,19 @@ namespace Managers
         public static GroupUI? CurrentlyEditingGroup { get; private set; } = null;
         public static bool IsEditing => CurrentlyEditingGroup != null;
 
-        public static InputField inputField = new()
-        {
-            TextureColor = Settings.InputfieldBackgroundColor,
-            RenderOrder = 5,
-            IsVisible = false,
-        };
+        public static InputField? inputField;
 
         public static void Init()
         {
             groups = [];
+
+            inputField = new()
+            {
+                TextureColor = Settings.InputfieldBackgroundColor,
+                RenderOrder = 5,
+                IsVisible = false,
+            };
+
             inputField.RecalcSize();
             inputField.ContentChanged += OnInputChanged;
             inputField.SubmitAction += EndEditing;
@@ -31,7 +34,7 @@ namespace Managers
 
         public static void OnInputChanged(string _)
         {
-            if (CurrentlyEditingGroup != null)
+            if (CurrentlyEditingGroup != null && inputField != null)
             {
                 inputField.Transform.Position = new(
                     CurrentlyEditingGroup.Transform.Position.X - CurrentlyEditingGroup.Transform.Scale.X / 2 + inputField.Transform.Scale.X / 2,
@@ -47,6 +50,8 @@ namespace Managers
             {
                 EndEditing();
             }
+
+            if (inputField == null) { return; }
 
             CurrentlyEditingGroup = group;
             CurrentlyEditingGroup.StartEditing();
@@ -66,6 +71,7 @@ namespace Managers
 
         public static void EndEditing()
         {
+            if (inputField == null) { return; }
             CurrentlyEditingGroup?.EndEdit(inputField.Content);
 
             CurrentlyEditingGroup = null;
@@ -76,6 +82,8 @@ namespace Managers
         public static void CancelEditing()
         {
             CurrentlyEditingGroup?.EndEdit();
+
+            if (inputField == null) { return; }
 
             CurrentlyEditingGroup = null;
             inputField.IsVisible = false;
@@ -216,9 +224,12 @@ namespace Managers
 
         public static void Dispose()
         {
-            inputField.ContentChanged -= OnInputChanged;
-            inputField.SubmitAction -= EndEditing;
-            inputField.Dispose();
+            if (inputField != null)
+            {
+                inputField.ContentChanged -= OnInputChanged;
+                inputField.SubmitAction -= EndEditing;
+                inputField.Dispose();
+            }
 
             foreach (var ui in groups.Where(x => x.Value.Item2 != null))
             {

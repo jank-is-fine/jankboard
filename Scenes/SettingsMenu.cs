@@ -254,7 +254,7 @@ public class SettingsScene : Scene
 
 
         Children.AddRange([.. ToggleButtons.Values.Where(x => x != null).Cast<UIObject>()]);
-        Children = [.. Children.OrderBy(x => x.RenderOrder).Distinct()];
+        Children = [.. Children.Where(x => x != null).OrderBy(x => x!.RenderOrder).Distinct()];
     }
 
     private SettingsColorUI CreateColorSetting(string name, Func<Color> getter, Action<Color> setter, SettingGroupType groupType, string section)
@@ -550,8 +550,9 @@ public class SettingsScene : Scene
     public override void Render()
     {
         TextRenderer.Clear();
-        foreach (var obj in Children.Except([ColorPicker]).Where(x => x.IsVisible))
+        foreach (var obj in Children.Where(x => x != null).Except([ColorPicker]).Where(x => x!.IsVisible))
         {
+            if (obj == null) { continue; }
             obj.Render();
         }
         TextRenderer.Draw();
@@ -659,6 +660,7 @@ public class SettingsScene : Scene
     {
         foreach (var obj in Children)
         {
+            if (obj == null) { continue; }
             obj.Dispose();
         }
         ColorPicker.ColorChanged -= ColorInputChanged;
