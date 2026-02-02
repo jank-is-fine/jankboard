@@ -124,7 +124,11 @@ namespace Managers
             {
                 GroupName = "New Group"
             };
-            groups.Add(group.guid, (group, CreateNewGroupUI(group)));
+
+            var newGroup = CreateNewGroupUI(group);
+            groups.Add(group.guid, (group, newGroup));
+            newGroup.RecalcMinSize();
+            newGroup.RecalcSize();
 
             var action = new UndoRedoAction(
                undoActions: [() => MarkGroupsAsDeleted([group.guid])],
