@@ -4,7 +4,6 @@ namespace Rendering.UI
 {
     public class UIButtonList : UIButton
     {
-        public List<UIButton> optionButtons = [];
         public bool ListVisible = false;
         public UIImage ListBG;
         public float ButtonPadding = 1f;
@@ -19,8 +18,6 @@ namespace Rendering.UI
             IsScreenSpace = isScreenSpace;
 
             ListBG = new(null, isScreenSpace, true) { IsSelectable = false };
-
-            optionButtons = ListButtons;
 
             CalculateOptionButtonSizes();
             if (ListButtons.Count > 0)
@@ -41,12 +38,11 @@ namespace Rendering.UI
             }
             SetText(TextToDisplay);
             UpdateListBackgroundSize();
-            ChildObjects.AddRange(optionButtons);
+            ChildObjects.AddRange(ListButtons);
         }
 
         public void AddOptionButton(UIButton button)
         {
-            optionButtons.Add(button);
             button.actions.Insert(0, CloseList);
 
             ChildObjects.Add(button);
@@ -56,18 +52,18 @@ namespace Rendering.UI
 
         public void RemoveOptionButton(UIButton button)
         {
-            optionButtons.Remove(button);
-            CalculateOptionButtonSizes();
-            UpdateListBackgroundSize();
             ChildObjects.Remove(button);
+            CalculateOptionButtonSizes();
         }
 
         private void CalculateOptionButtonSizes()
         {
-            var maxsize = LayoutHelper.CalculateMaxSize([.. optionButtons.Where(x => x is not null).Cast<UIObject>()]);
-            foreach (var button in optionButtons)
+            var maxsize = LayoutHelper.CalculateMaxSize([.. ChildObjects.Where(x => x is not null).Cast<UIObject>()]);
+            maxOptionWidth = maxsize.X;
+
+            foreach (var button in ChildObjects)
             {
-                button.SetScale(maxsize);
+                button.Transform.Scale = maxsize;
             }
             UpdateListBackgroundSize();
         }
@@ -75,9 +71,9 @@ namespace Rendering.UI
 
         private void UpdateListBackgroundSize()
         {
-            if (optionButtons.Count > 0)
+            if (ChildObjects.Count > 0)
             {
-                float Height = optionButtons.Sum(x => x.Transform.Scale.Y) + (ButtonPadding * optionButtons.Count);
+                float Height = ChildObjects.Sum(x => x.Transform.Scale.Y) + (ButtonPadding * ChildObjects.Count);
                 ListBG.Transform.Scale = new(maxOptionWidth, Height);
             }
         }
@@ -90,7 +86,7 @@ namespace Rendering.UI
         public void CloseList()
         {
             ListVisible = false;
-            foreach (var button in optionButtons)
+            foreach (var button in ChildObjects)
             {
                 button.IsVisible = false;
             }
@@ -102,6 +98,7 @@ namespace Rendering.UI
 
             if (ListVisible)
             {
+                CalculateOptionButtonSizes();
                 if (ShowListOnSide)
                 {
                     ShowListSide();
@@ -113,7 +110,7 @@ namespace Rendering.UI
 
                 AudioHandler.PlaySound("open_001");
 
-                foreach (var btn in optionButtons)
+                foreach (var btn in ChildObjects)
                 {
                     btn.IsVisible = true;
                     btn.RenderOrder = RenderOrder + 1;
@@ -133,32 +130,26 @@ namespace Rendering.UI
         private void ShowListSide()
         {
             var bounds = Bounds;
-            Vector2 currentPos = new(bounds.Right + ListBG.Transform.Scale.X / 2, bounds.Top);
+            var RightProbe = bounds.Right + (ListBG.Transform.Scale.X / 2f);
+
             Vector2 viewportSize = new(Camera.ViewportSize.X, Camera.ViewportSize.Y);
 
-            currentPos = ClampListToSides(currentPos, viewportSize);
+            Vector2 currentPos;
 
-            ListBG.Transform.Position = new(currentPos.X, currentPos.Y + ListBG.Transform.Scale.Y / 2);
-
-            LayoutHelper.Vertical(optionButtons, currentPos - new Vector2(maxOptionWidth / 2, 0), ButtonPadding);
-        }
-
-        private Vector2 ClampListToSides(Vector2 currentPos, Vector2 viewportSize)
-        {
-            if (currentPos.X + ListBG.Transform.Scale.X > viewportSize.X)
+            if (RightProbe < viewportSize.X)
             {
-                currentPos.X = Transform.Position.X - Transform.Scale.X / 2 - ListBG.Transform.Scale.X / 2;
+                currentPos = new(RightProbe, Transform.Position.Y);
+                ListBG.Transform.Position = new(RightProbe, Transform.Position.Y - Transform.Scale.Y / 2f);
+            }
+            else
+            {
+                currentPos = new(bounds.Left - (ListBG.Transform.Scale.X / 2f), Transform.Position.Y);
+                ListBG.Transform.Position = new(currentPos.X, Transform.Position.Y - Transform.Scale.Y / 2f);
             }
 
-            if (currentPos.X - ListBG.Transform.Scale.X < 0)
+            if (currentPos.Y + ListBG.Transform.Scale.Y > viewportSize.Y)
             {
-                currentPos.X = Transform.Position.X + Transform.Scale.X / 2 + ListBG.Transform.Scale.X / 2;
-            }
-
-            float totalListHeight = ListBG.Transform.Scale.Y;
-            if (currentPos.Y + totalListHeight > viewportSize.Y)
-            {
-                float overflow = viewportSize.Y - (currentPos.Y + totalListHeight);
+                float overflow = viewportSize.Y - (currentPos.Y + ListBG.Transform.Scale.Y);
                 currentPos.Y += overflow;
             }
 
@@ -166,11 +157,10 @@ namespace Rendering.UI
             {
                 currentPos.Y = 0;
             }
-            Vector2 pos = new(currentPos.X, currentPos.Y);
-            ListBG.Transform.Position = pos;
-            return pos;
-        }
 
+            var listBGBounds = ListBG.Bounds;
+            LayoutHelper.Vertical(ChildObjects, new(listBGBounds.Left, listBGBounds.Top), ButtonPadding);
+        }
 
         private void ShowListBottom()
         {
@@ -184,9 +174,9 @@ namespace Rendering.UI
 
             currentPos = ClampListToBottom(currentPos, viewportSize);
 
-            LayoutHelper.Vertical(optionButtons, currentPos - ListBG.Transform.Scale / 2, ButtonPadding);
+            LayoutHelper.Vertical(ChildObjects, currentPos - ListBG.Transform.Scale / 2, ButtonPadding);
 
-            foreach (var button in optionButtons)
+            foreach (var button in ChildObjects)
             {
                 button.IsVisible = true;
             }
@@ -224,7 +214,7 @@ namespace Rendering.UI
             base.Render();
             if (!ListVisible) { return; }
             ListBG.Render();
-            foreach (var button in optionButtons)
+            foreach (var button in ChildObjects)
             {
                 button.Render();
             }

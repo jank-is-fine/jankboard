@@ -10,7 +10,7 @@ namespace Managers
     public static class GroupManager
     {
         private static Dictionary<Guid, (Group, GroupUI?)> groups = null!;
-        public static List<Group> GetAllGroups => [.. groups.Select(x => x.Value.Item1)];
+        public static List<Group> GetAllGroups => [.. groups.Select(x => x.Value.Item1).Where(x => !x.IsDeleted)];
         public static GroupUI? CurrentlyEditingGroup { get; private set; } = null;
         public static bool IsEditing => CurrentlyEditingGroup != null;
 
@@ -162,9 +162,12 @@ namespace Managers
                 Transform = { Position = group.position },
                 RenderOrder = 0,
             };
+            
             uI.RecalcMinSize();
             uI.Transform.Scale = group.Size;
             uI.RecalcHandlerPos();
+            uI.OnDragResizeHandle(3);
+
             ChunkManager.AddObject(uI);
             return uI;
         }

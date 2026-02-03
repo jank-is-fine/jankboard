@@ -243,8 +243,8 @@ namespace Rendering.UI
         private void UpdateAllButtonSizes()
         {
             var allButtons = contextMenuOptions;
-            var maxSize = LayoutHelper.CalculateMaxSize([.. contextMenuOptions.Where(x => x.button is not null).Select(x => x.button).Cast<UIObject>()]);
-            maxSize = new(maxSize.X + BUTTON_MARGIN * 2f, maxSize.Y + BUTTON_MARGIN * 2f);
+            var maxSize = LayoutHelper.CalculateMaxSize([.. contextMenuOptions.Where(x => x.button != null).Select(x => x.button).Cast<UIObject>()]);
+            maxSize = new(maxSize.X + BUTTON_MARGIN, maxSize.Y + BUTTON_MARGIN);
 
             foreach (var (button, categories) in allButtons)
             {
@@ -255,6 +255,7 @@ namespace Rendering.UI
         public void SetupButtons(List<Type> menuCategories)
         {
             CurrentActiveOptions.Clear();
+            UpdateAllButtonSizes();
 
             foreach (var btn in Options)
             {
@@ -295,16 +296,17 @@ namespace Rendering.UI
                 }
             }
 
-            foreach (var btn in CurrentActiveOptions)
+            foreach (var (button, categories) in CurrentActiveOptions)
             {
-                btn.button.IsVisible = false;
+                button.IsVisible = false;
             }
         }
 
         public override void RecalcSize()
         {
             var Height = CurrentActiveOptions.Sum(x => x.button.Transform.Scale.Y);
-            Transform.Scale = new(maxWidth, Height + (BUTTON_MARGIN * CurrentActiveOptions.Count) - BUTTON_MARGIN);
+            var Width = CurrentActiveOptions.Max(x => x.button.Transform.Scale.X);
+            Transform.Scale = new(Width + BUTTON_MARGIN, Height + (BUTTON_MARGIN * CurrentActiveOptions.Count));
         }
 
         public override void Render()
