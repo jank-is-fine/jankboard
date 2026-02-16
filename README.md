@@ -65,7 +65,7 @@ I learned a good deal about OpenGL and GLSL, including (but not limited to) thes
 
 ## Limitations
 
-- **Text rendering** could be way better. While I use MTSDF text rendering with vertices calculation each frame on the CPU and upload data each frame, a better approach would be using texture atlases with caching and dirty region updates.
+- **Text rendering** could be way better.
 - **The scene “system”** could be improved. Right now, I create a new list every frame, but this is overshadowed by the text rendering cost.
 - **Code quality:** I added summaries, but there aren’t enough comments. 
   That said, I can’t really judge it since I know where everything is.
