@@ -41,10 +41,6 @@ namespace Managers
             Ebo = new BufferObject<uint>(Gl, [], BufferTargetARB.ElementArrayBuffer);
             Vao = new VertexArrayObject<float, uint>(Gl, Vbo, Ebo);
 
-            WindowManager.window.Closing += Dispose;
-
-            var shaderKeys = ShaderDictonary.Keys.ToList();
-
             foreach (var pair in ShaderDictonary)
             {
                 try
@@ -143,7 +139,6 @@ namespace Managers
             Vbo?.Dispose();
             Ebo?.Dispose();
             Vao?.Dispose();
-            Gl.Dispose();
 
             foreach (var shader in Shaders)
             {
@@ -152,6 +147,7 @@ namespace Managers
             Shaders.Clear();
             FontHandler?.Dispose();
             TextRenderer.Dispose();
+            Gl.Dispose();
         }
     }
 }

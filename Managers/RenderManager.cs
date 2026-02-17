@@ -204,6 +204,7 @@ namespace Managers
 
         private static void OnRender(double deltaTime)
         {
+            if (Window.FramebufferSize == Vector2D<int>.Zero) return;
             ExecuteMainPass();
             ExecutePostPass();
             FPSCounter.Render();
@@ -306,6 +307,8 @@ namespace Managers
             {
                 scene.Dispose();
             }
+
+            ShaderManager.Dispose();
         }
     }
 

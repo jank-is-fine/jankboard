@@ -7,6 +7,7 @@ using Managers.Clipboard;
 using System.Reflection;
 using Silk.NET.Core;
 using ImageMagick;
+using Silk.NET.Windowing.Sdl;
 
 namespace Managers
 {
@@ -36,6 +37,7 @@ namespace Managers
             var options = WindowOptions.Default;
             options.Size = new Vector2D<int>(800, 600);
             options.Title = Settings.ApplicationName;
+            SdlWindowing.Use();
             //options.WindowState = WindowState.Fullscreen;
             window = Window.Create(options);
 
@@ -55,7 +57,7 @@ namespace Managers
             InputDeviceHandler.Init(window);
             UIobjectHandler.Init();
 
-            ChunkManager.Init(512);
+            ChunkManager.Init(1024);
             ShaderManager.Init();
 
             TextureHandler.GetAllTextures();

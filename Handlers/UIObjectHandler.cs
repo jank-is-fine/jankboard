@@ -73,8 +73,6 @@ public static class UIobjectHandler
         elements = [.. elements.Where(x => x.IsVisible && x.IsSelectable).OrderByDescending(x => x.RenderOrder)];
 
         screenSpaceElements = [.. elements.Where(x => x.IsScreenSpace).OrderByDescending(x => x.RenderOrder).Distinct()];
-        worldSpaceElements = [.. elements.Where(x => !x.IsScreenSpace).OrderByDescending(x => x.RenderOrder).ThenByDescending(x => x.RenderKey).Distinct()];
-
         foreach (var obj in screenSpaceElements)
         {
             if (obj.ContainsPoint(screenPos))
@@ -83,6 +81,7 @@ public static class UIobjectHandler
             }
         }
 
+        worldSpaceElements = [.. elements.Where(x => !x.IsScreenSpace).OrderByDescending(x => x.RenderOrder).ThenByDescending(x => x.RenderKey).Distinct()];
         foreach (var obj in worldSpaceElements)
         {
             if (obj.ContainsPoint(worldPos))
