@@ -25,7 +25,8 @@ namespace Managers.Clipboard
 
         static readonly Dictionary<string, (string getCommand, string setCommand)> WindowsBackends = new()
         {
-            { "PowerShell", ("powershell -Command \"Get-Clipboard\"", "powershell -Command \"$input | Set-Clipboard\"") },
+            { "PowerShell (Get-Clipboard)", ("powershell -Command \"& {[Console]::Out.Write((Get-Clipboard -Format Text))}\"", "powershell -Command \"$inputText = [Console]::In.ReadToEnd(); Set-Clipboard -Value $inputText\"") },
+            { "clip (Windows built-in)", ("powershell -Command \"& {[Console]::Out.Write((Get-Clipboard -Format Text))}\"", "cmd /c clip") },
         };
 
         private static Dictionary<string, (string getCommand, string setCommand)>? GetPlatformDictionary()
@@ -72,14 +73,16 @@ namespace Managers.Clipboard
 
         private static string? ExecuteGetCommand(string command)
         {
-            var parts = ParseCommand(command);
+            var parts = command.Split(' ', 2);
+            var fileName = parts[0];
+            var arguments = parts.Length > 1 ? parts[1] : "";
 
             using var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = parts.fileName,
-                    Arguments = parts.arguments,
+                    FileName = fileName,
+                    Arguments = arguments,
                     RedirectStandardOutput = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
@@ -93,7 +96,12 @@ namespace Managers.Clipboard
             if (!exited)
             {
                 process.Kill();
-                return null;
+                throw new(process.StandardError.ReadToEnd());
+            }
+
+            if (!string.IsNullOrEmpty(result))
+            {
+                result = result.TrimEnd('\r', '\n');
             }
 
             return result;
@@ -101,7 +109,9 @@ namespace Managers.Clipboard
 
         private static bool ExecuteSetCommand(string command, string text)
         {
-            var (fileName, arguments) = ParseCommand(command);
+            var parts = command.Split(' ', 2);
+            var fileName = parts[0];
+            var arguments = parts.Length > 1 ? parts[1] : "";
 
             using var process = new Process
             {
@@ -120,12 +130,12 @@ namespace Managers.Clipboard
             process.StandardInput.Write(text);
             process.StandardInput.Close();
 
-            bool exited = process.WaitForExit(200);
+            bool exited = process.WaitForExit(2000);
 
             if (!exited)
             {
                 process.Kill();
-                return false;
+                throw new(process.StandardError.ReadToEnd());
             }
 
             return process.ExitCode == 0;

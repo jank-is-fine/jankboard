@@ -110,6 +110,11 @@ public class UIScrollableObjectList : UIImage
         {
             item.IsVisible = IsItemVisible(item);
         }
+
+        foreach (var item in ChildObjects.Where(x => x is SaveFileButton).Cast<SaveFileButton>())
+        {
+            item.PositionButtons();
+        }
     }
 
     private bool IsItemVisible(UIObject item)

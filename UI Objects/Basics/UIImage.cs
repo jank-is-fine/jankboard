@@ -9,7 +9,7 @@ namespace Rendering.UI
     {
         public VertexArrayObject<float, uint> _vao;
         public GL gl;
-        private bool _nineSlice;
+        public bool _nineSlice {get; private set;}
         public Vector2 _nineSliceBorder {get; private set;} = new(32, 16);
         public Action? DragStartAction;
         public Action? DragAction;

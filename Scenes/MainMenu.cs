@@ -13,6 +13,7 @@ public class MainMenuScene : Scene
     private UITextLabel ErrorLabel = new(textAnchorPoint: TextAnchorPoint.Center_Center, isNineSlice: false);
     private UITextLabel SavesLabel = new(textAnchorPoint: TextAnchorPoint.Center_Center, isNineSlice: false);
 
+    private ConfirmationModal confirmationModal = new();
 
     public MainMenuScene()
     {
@@ -31,7 +32,6 @@ public class MainMenuScene : Scene
         ErrorLabel.SetText("[b]Please Enter your desired name for the save[/b]");
         SavesLabel.SetText("[b]Saves[/b]");
 
-
         ShowSettingsButton = new
         (
             " ",
@@ -48,11 +48,6 @@ public class MainMenuScene : Scene
             Texture = TextureHandler.GetEmbeddedTextureByName("gear.png")
         };
 
-        /* YIQ Testing
-        SavesLabel.TextureColor = Color.FromArgb(Random.Shared.Next(128, 255),
-                Random.Shared.Next(255), Random.Shared.Next(255), Random.Shared.Next(255));
-        */
-
         NewSaveInputfield = new(nineSlice: true, NineSliceBorder: new(16, 16), "New Save name")
         {
             IsDraggable = false,
@@ -62,8 +57,6 @@ public class MainMenuScene : Scene
         NewSaveInputfield.DisallowedCharacters.Add('\n');
         NewSaveInputfield.MaxCharAmount = 25;
 
-
-
         SaveList = new UIScrollableObjectList(10f)
         {
             TextureColor = Color.FromArgb(128, 143, 143, 143),
@@ -71,7 +64,9 @@ public class MainMenuScene : Scene
             IsDraggable = false
         };
 
-        Children.AddRange([NewSaveInputfield, CreateNewSaveButton, SaveList, ErrorLabel, SavesLabel, ShowSettingsButton]);
+        confirmationModal.IsVisible = false;
+        confirmationModal.RenderOrder = 50;
+        Children.AddRange([ShowSettingsButton, confirmationModal, NewSaveInputfield, CreateNewSaveButton, SaveList, ErrorLabel, SavesLabel]);
 
         RefreshSaveFiles();
         RecalcLayout();
@@ -84,7 +79,7 @@ public class MainMenuScene : Scene
         List<string> saves = SaveManager.GetAllSaves();
         foreach (string save in saves)
         {
-            var newSaveButton = new UIButton($"  {Path.GetFileNameWithoutExtension(save)}", [() => LoadSave(save)], textAnchorPoint: TextAnchorPoint.Left_Center)
+            var newSaveButton = new SaveFileButton(save, confirmationModal,RefreshSaveFiles)
             {
                 IsDraggable = false,
             };
@@ -92,6 +87,11 @@ public class MainMenuScene : Scene
         }
 
         SaveList.RecalcLayout();
+    }
+
+    public void DeleteSave(string path)
+    {
+
     }
 
     public override void RecalcLayout()
@@ -153,12 +153,8 @@ public class MainMenuScene : Scene
             viewportSize.X - 12f - ShowSettingsButton.Transform.Scale.X / 2f,
             12f + ShowSettingsButton.Transform.Scale.Y / 2f
         );
-    }
 
-    public void LoadSave(string save)
-    {
-        SaveManager.LoadFromDisk(save);
-        RenderManager.ChangeScene("Main");
+        confirmationModal.RecalcSize();
     }
 
     public void CreateNewSave()
@@ -220,7 +216,7 @@ public class MainMenuScene : Scene
     public override void Render()
     {
         TextRenderer.Clear();
-        foreach (var obj in Children)
+        foreach (var obj in Children.Where(x => x != null && x.IsVisible).Except([confirmationModal]))
         {
             if (obj == null) { continue; }
             obj.Render();
@@ -229,6 +225,10 @@ public class MainMenuScene : Scene
                 child.Render();
             }
         }
+        TextRenderer.Draw();
+
+        TextRenderer.Clear();
+        confirmationModal.Render();
         TextRenderer.Draw();
 
         var hoeverObject = UIobjectHandler.CurrentHoeverTarget;
@@ -251,6 +251,9 @@ public class MainMenuScene : Scene
         NewSaveInputfield.UnsubActions();
         NewSaveInputfield.ContentChanged -= NewSaveInputChanged;
         NewSaveInputfield.SubmitAction -= CreateNewSave;
+        
+        SelectionManager.ClearSelection();
+        NewSaveInputfield.SetText("");
     }
 
     public override void SubActions()

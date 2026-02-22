@@ -134,10 +134,11 @@ namespace Managers.Clipboard
                 throw new(process.StandardError.ReadToEnd());
             }
 
-            if(result.Count() > 0)
+            if (!string.IsNullOrEmpty(result))
             {
-                result = result[..(result.Count() - 1)];//remove new line character
+                result = result.TrimEnd('\r', '\n');
             }
+
             return result;
         }
 

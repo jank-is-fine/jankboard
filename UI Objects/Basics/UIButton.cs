@@ -9,6 +9,7 @@ namespace Rendering.UI
         ParsedText ParsedText;
         public List<Action> actions = [];
         public bool AdjustTextColor;
+        public bool GetButtonColorAuto = true;
         public Color TextColor = Settings.TextColor;
         public TextAnchorPoint TextAnchorPoint;
         private bool _recalcSize;
@@ -87,7 +88,11 @@ namespace Rendering.UI
 
         public override void Render()
         {
-            TextureColor = Settings.ButtonBGColor;
+            if (GetButtonColorAuto)
+            {
+                TextureColor = Settings.ButtonBGColor;
+            }
+
             base.Render();
 
             TextRenderer.RenderTextParsed(

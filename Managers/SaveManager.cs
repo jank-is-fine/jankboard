@@ -111,6 +111,7 @@ public class SaveManager
         ImageManager.LoadFromSave(TargetSave.Images);
 
         EntryManager.LoadEntryLayer(Guid.Empty, false);
+        RenderManager.ChangeScene("Main");
     }
 
     public static void LoadFromDisk(string FilePath)
@@ -131,6 +132,24 @@ public class SaveManager
         else
         {
             Logger.Log("SaveManager", "Save file IS found but could not Convert or read!  Path: " + FilePath, LogLevel.FATAL);
+        }
+    }
+
+    public static void DeleteSave(string saveName)
+    {
+        if (!DoesSaveExist(saveName)) { return; }
+
+        try
+        {
+            File.Delete($"{SaveFolder}/{saveName}.json");
+        }
+        catch (Exception e)
+        {
+            Logger.Log
+            (
+                "SaveManager", $"Could not delete Save.\nPath: {SaveFolder}/{saveName}.json\nError: {e.Message}\nStacktrace:\n{e.StackTrace}",
+                LogLevel.ERROR
+            );
         }
     }
 

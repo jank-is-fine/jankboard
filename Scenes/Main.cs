@@ -92,7 +92,7 @@ public class MainScene : Scene
         ConnectionRenderBatch.ExecuteBatch();
         EntryRenderBatch.ExecuteBatch();
 
-        OutlineRender.AddOutlineToObjects([.. selectedObjects.Where(x => x is not ResizeHandle)], 16f * Camera.Zoom, Settings.HighlightColor);
+        OutlineRender.AddOutlineToObjects([.. selectedObjects.Where(x => x is not ResizeHandle && !x.IsScreenSpace)], 16f * Camera.Zoom, Settings.HighlightColor);
         OutlineRender.Draw();
 
         var hoeverObject = UIobjectHandler.CurrentHoeverTarget;

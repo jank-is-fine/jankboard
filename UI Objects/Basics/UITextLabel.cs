@@ -7,6 +7,7 @@ public class UITextLabel : UIImage
     private ParsedText ParsedText;
     public float MinWidth = 40f;
     public float MinHeight = 10f;
+    public bool GetBGColorAuto = true;
     private Color TextColor = Color.Black;
     private Color LastBGColor;
     private const float WIDTH_MARGIN = 10f;
@@ -51,8 +52,11 @@ public class UITextLabel : UIImage
         {
             return;
         }
-        
-        TextureColor = Settings.TextLabelBackgroundColor;
+
+        if (GetBGColorAuto)
+        {
+            TextureColor = Settings.TextLabelBackgroundColor;
+        }
 
         if (TextureColor != LastBGColor)
         {
