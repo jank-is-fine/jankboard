@@ -70,9 +70,11 @@ I learned a good deal about OpenGL and GLSL, including (but not limited to) thes
 - **Code quality:** I added summaries, but there aren’t enough comments. 
   That said, I can’t really judge it since I know where everything is.
 
+
 ## Future of this project
 
-I might revisit this project later, but it’ll be a while. In the meantime, if you want to improve or contribute, you’re probably better off forking the repo and doing it your way™.
+~~I might revisit this project later, but it’ll be a while. In the meantime, if you want to improve or contribute, you’re probably better off forking the repo and doing it your way™.~~
+
 
 ## Font atlas creation
 I used [msdf-atlas-gen](https://github.com/Chlumsky/msdf-atlas-gen) , the command i use
