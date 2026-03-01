@@ -5,7 +5,6 @@ using System.Diagnostics;
 
 namespace Rendering.UI
 {
-    // next up, improve connection bounds and selection
     public class ConnectionUI : UIObject
     {
         public bool RenderReady { get; private set; } = false;

@@ -52,13 +52,13 @@ public class SettingsScene : Scene
 
 
 
-    private UIButton BackToMainMenu = new("[b]Back to Main Menu[/b]", [SaveManager.SaveToFile, () => RenderManager.ChangeScene("Main Menu")],
+    private UIButton BackToMainMenu = new("[b]Back to Main Menu[/b]", [() => SaveManager.SaveToFile(), () => RenderManager.ChangeScene("Main Menu")],
                 textAnchorPoint: TextAnchorPoint.Center_Center)
     {
         IsDraggable = false
     };
 
-    private UIButton SaveQuit = new("[b]Save and Quit[/b]", [SaveManager.SaveToFile, () => WindowManager.ApplicationQuit()],
+    private UIButton SaveQuit = new("[b]Save and Quit[/b]", [() => SaveManager.SaveToFile(), WindowManager.window.Close],
                 textAnchorPoint: TextAnchorPoint.Center_Center)
     {
         IsDraggable = false
@@ -206,7 +206,7 @@ public class SettingsScene : Scene
             "[b]Undo stack size[/b]",
             getter: () => Settings.RedoStackLimit,
             setter: x => Settings.RedoStackLimit = x,
-            optionalTriggers: [UndoRedoManager.Clear],
+            optionalTriggers: [() => UndoRedoManager.Clear()],
             renderOrder: 3,
             4,
             500
@@ -242,15 +242,36 @@ public class SettingsScene : Scene
         };
         ConnectionSize.RecalcSize();
 
+        UIIntegerSetting AutoSaveSettings = new
+        (
+            "[b]Auto Save every x Seconds[/b]",
+            getter: () => Settings.AutoSaveTimeInSeconds,
+            setter: x => Settings.AutoSaveTimeInSeconds = x,
+            optionalTriggers: [],
+            renderOrder: 3,
+            30,
+            1800
+        )
+        {
+            IsVisible = false,
+            Transform =
+            {
+                Scale = new(150, 120)
+            },
+            IsDraggable = false
+        };
+        AutoSaveSettings.RecalcSize();
+
         SettingsGroups[SettingGroupType.Font_Settings]?.Add(("", FontSizeSetting));
         SettingsGroups[SettingGroupType.Font_Settings]?.Add(("", Fontsetting));
 
-        //Prepend did not work -_-
         SettingsGroups[SettingGroupType.Miscellaneous]?.Insert(0, ("", UndoStackLimitSetting));
 
         SettingsGroups[SettingGroupType.Connection_Settings]?.Add(("", ConnectionSize));
 
-        Children.AddRange([FontSizeSetting, Fontsetting, UndoStackLimitSetting, ConnectionSize]);
+        SettingsGroups[SettingGroupType.Miscellaneous]?.Add(("Auto Save", AutoSaveSettings));
+
+        Children.AddRange([FontSizeSetting, Fontsetting, UndoStackLimitSetting, ConnectionSize, AutoSaveSettings]);
 
 
         Children.AddRange([.. ToggleButtons.Values.Where(x => x != null).Cast<UIObject>()]);

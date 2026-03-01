@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.Numerics;
 using Managers;
 using Silk.NET.OpenGL;
@@ -8,16 +7,17 @@ namespace Rendering.UI
     public class UIImage : UIObject
     {
         public VertexArrayObject<float, uint> _vao;
-        public GL gl;
-        public bool _nineSlice {get; private set;}
-        public Vector2 _nineSliceBorder {get; private set;} = new(32, 16);
+        private readonly GL _gl;
+        protected GL Gl => _gl;
+        public bool _nineSlice { get; private set; }
+        public Vector2 _nineSliceBorder { get; private set; } = new(32, 16);
         public Action? DragStartAction;
         public Action? DragAction;
         public Action? DragEndAction;
 
         public UIImage(Texture? texture = null, bool screenSpace = false, bool nineSlice = false, Vector2? NineSliceBorder = null)
         {
-            gl = ShaderManager.gl;
+            _gl = ShaderManager.gl;
 
             if (nineSlice)
             {
@@ -43,7 +43,7 @@ namespace Rendering.UI
                 Texture = texture;
             }
 
-            _vao = new VertexArrayObject<float, uint>(gl, ShaderManager.Vbo, ShaderManager.Ebo);
+            _vao = new VertexArrayObject<float, uint>(_gl, ShaderManager.Vbo, ShaderManager.Ebo);
             _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 5, 0);
             _vao.VertexAttributePointer(1, 2, VertexAttribPointerType.Float, 5, 3);
             IsScreenSpace = screenSpace;
@@ -78,10 +78,10 @@ namespace Rendering.UI
 
             Texture?.Bind();
 
-            gl.DrawArrays(PrimitiveType.Triangles, 0, 6);
+            _gl.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
             // Check for OpenGL errors
-            var error = gl.GetError();
+            var error = _gl.GetError();
             if (error != GLEnum.NoError)
             {
                 // No logging here, to prevent huge log files

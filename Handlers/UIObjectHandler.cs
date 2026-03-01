@@ -24,11 +24,9 @@ public static class UIobjectHandler
     private static List<UIObject> worldSpaceElements = [];
     public static UIObject? CurrentHoeverTarget { get; private set; } = null;
 
-
     public static void Init()
     {
         Mouse.MouseMove += Hoever;
-        WindowManager.window.Closing += Dispose;
     }
 
     private static void Hoever(IMouse mouse, Vector2 vector)
@@ -50,7 +48,6 @@ public static class UIobjectHandler
 
     public static void Dispose()
     {
-        WindowManager.window.Closing -= Dispose;
         Mouse.MouseMove -= Hoever;
     }
 
@@ -63,13 +60,14 @@ public static class UIobjectHandler
         screenSpaceElements.Clear();
         worldSpaceElements.Clear();
 
-        foreach (var o in RenderManager.CurrentScene.Children.Where(x => x != null && x.IsVisible))
+
+        foreach (var o in RenderManager.CurrentScene.Children.Prepend(RenderManager.modal).Where(x => x != null && x.IsVisible))
         {
             if (o == null) { continue; }
             elements.Add(o);
             elements.AddRange(GetAllChildren(o));
         }
-
+        
         elements = [.. elements.Where(x => x.IsVisible && x.IsSelectable).OrderByDescending(x => x.RenderOrder)];
 
         screenSpaceElements = [.. elements.Where(x => x.IsScreenSpace).OrderByDescending(x => x.RenderOrder).Distinct()];

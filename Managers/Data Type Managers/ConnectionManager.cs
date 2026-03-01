@@ -14,6 +14,11 @@ namespace Managers
         private static Guid CurrentParentEntry;
         private static EntryUI? Source = null;
 
+        public static void AddConnections(List<Connection> targetConnections)
+        {
+            targetConnections.Where(x => x != null).ToList().ForEach(x => connections.Add(x));
+        }
+
         public static void Init()
         {
             connections = [];
@@ -91,8 +96,8 @@ namespace Managers
         {
             if (source.guid == target.guid) { return null; }
 
-           /* var existingConnection = connections.FirstOrDefault(x => (x.SourceEntry == source.guid && x.TargetEntry == target.guid) ||
-                (x.TargetEntry == source.guid && x.SourceEntry == target.guid));*/
+            /* var existingConnection = connections.FirstOrDefault(x => (x.SourceEntry == source.guid && x.TargetEntry == target.guid) ||
+                 (x.TargetEntry == source.guid && x.SourceEntry == target.guid));*/
 
             var existingConnection = connections.FirstOrDefault(x => x.SourceEntry == source.guid && x.TargetEntry == target.guid);
 
@@ -141,13 +146,19 @@ namespace Managers
             }
         }
 
-        public static void CreateNewConnectionUIs(List<Connection> conns)
+        public static List<ConnectionUI> CreateNewConnectionUIs(List<Connection> conns)
         {
+            List<ConnectionUI> CreatedUIs = [];
             foreach (Connection con in conns)
             {
-                CreateNewConnectionUI(con);
+                var createdConn = CreateNewConnectionUI(con);
+                if (createdConn != null)
+                {
+                    CreatedUIs.Add(createdConn);
+                }
             }
             UpdateAllConnections();
+            return CreatedUIs;
         }
 
         public static ConnectionUI? CreateNewConnectionUI(Connection conn)
@@ -260,6 +271,13 @@ namespace Managers
             }
             UpdateAllConnections();
         }
+
+        public static void CleanUpDeletedConnections()
+        {
+            var entriesToRemove = connections.Where(x => x == null || x.IsDeleted).ToList();
+            entriesToRemove.ForEach(x => connections.Remove(x));
+        }
+
 
         public static void RemoveConnections(List<Guid> guids)
         {

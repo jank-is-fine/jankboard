@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Numerics;
+using Managers;
 using Rendering.UI;
 
 public class SaveFileButton : UIButton
@@ -7,7 +8,7 @@ public class SaveFileButton : UIButton
     private string Save;
     private UIButton DeleteButton;
 
-    public SaveFileButton(string TargetSave, ConfirmationModal confirmationModal, Action RefreshAction) : base(" ", [])
+    public SaveFileButton(string TargetSave, Action RefreshAction) : base(" ", [])
     {
         Save = TargetSave;
         var saveName = Path.GetFileNameWithoutExtension(TargetSave);
@@ -16,7 +17,7 @@ public class SaveFileButton : UIButton
 
         void DeleteAction()
         {
-            confirmationModal.ShowModal
+            RenderManager.modal.ShowModal
             (
                 $"[b]Are you sure you want to delete \"{saveName}\" ?[/b]",
                 OnConfirmActions: [() => SaveManager.DeleteSave(saveName), () => RefreshAction?.Invoke()]
@@ -44,7 +45,7 @@ public class SaveFileButton : UIButton
 
     public override void OnClick(Vector2 pos)
     {
-        SaveManager.LoadFromDisk(Save);
+        SaveManager.LoadSaveFromDisk(Save);
     }
 
     public override void RecalcSize()

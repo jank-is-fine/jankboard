@@ -20,6 +20,11 @@ namespace Managers
 
         public static InputField? inputField;
 
+        public static void AddEntries(List<Entry> targetEntries)
+        {
+            targetEntries.Where(x => x != null).ToList().ForEach(x => entries.TryAdd(x.guid, (x, null)));
+        }
+
         public static void Init()
         {
             CurrentParentEntry = Guid.Empty;
@@ -235,20 +240,23 @@ namespace Managers
             return uI;
         }
 
-        private static void CreateNewEntryUIs(List<Entry> TargetEntries)
+        public static List<EntryUI> CreateNewEntryUIs(List<Entry> TargetEntries)
         {
+            List<EntryUI> CreatedUIs = [];
             foreach (Entry entry in TargetEntries)
             {
                 if (entries.TryGetValue(entry.guid, out var foundValuePair))
                 {
                     var spawnedEntry = SpawnNewEntry(entry);
                     entries[entry.guid] = (foundValuePair.Item1, spawnedEntry);
+                    CreatedUIs.Add(spawnedEntry);
                 }
                 else
                 {
                     Logger.Log("EntryManager", $"Entry {entry.guid} not found when creating UI!", LogLevel.FATAL);
                 }
             }
+            return CreatedUIs;
         }
 
         public static Entry? GetEntryByGuid(Guid target)
@@ -384,6 +392,12 @@ namespace Managers
                     }
                 }
             }
+        }
+
+        public static void CleanUpDeletedEntries()
+        {
+            var entriesToRemove = entries.Where(x => x.Value.Item1 == null || x.Value.Item1.IsDeleted).Select(x => x.Key).ToList();
+            entriesToRemove.ForEach(x => entries.Remove(x));
         }
 
         public static void RemoveEntries(List<Guid> guids)

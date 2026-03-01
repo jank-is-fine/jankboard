@@ -7,7 +7,10 @@ using Newtonsoft.Json;
 public class Settings
 {
     [Setting("Margin percent for the toolbar and settingsmenu scene", "", SettingGroupType.Basic_Settings, typeof(float), ignore: true, serialize: false)]
-    public const float MARGIN_PERCENT = 0.05f;
+    public const float MARGIN_PERCENT = 0.05f; 
+    
+    [Setting("Auto Save every x Seconds", "Auto Save", SettingGroupType.Miscellaneous, typeof(int), ignore: true)]
+    public static int AutoSaveTimeInSeconds = 120;
 
     [Setting("Application name", "", SettingGroupType.Basic_Settings, typeof(string), ignore: true, serialize: false)]
     public static string ApplicationName => "Jank Board";

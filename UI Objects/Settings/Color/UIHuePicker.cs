@@ -149,15 +149,15 @@ public class UIHuePicker : UIImage
             Shader?.SetUniform("uProjection", Camera.GetProjectionMatrix());
         }
         Shader?.SetUniform("uModel", Transform.ViewMatrix);
-        Shader?.SetUniform("uColor", TextureColor.R / 255.0f, TextureColor.G / 255.0f, TextureColor.B / 255.0f, TextureColor.A / 255.0f);
+        Shader?.SetUniform("uColor", Settings.ColorToVec4(TextureColor));
 
         Shader?.SetUniform("uPickerColor", _hueColor.R / 255.0f, _hueColor.G / 255.0f, _hueColor.B / 255.0f, 1.0f);
 
         Texture?.Bind();
 
-        gl.DrawArrays(PrimitiveType.Triangles, 0, 6);
+        Gl.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
-        var error = gl.GetError();
+        var error = Gl.GetError();
         if (error != GLEnum.NoError)
         {
             //Logging every frame would be bad. No logging

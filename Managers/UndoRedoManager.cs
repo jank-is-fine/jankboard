@@ -82,13 +82,16 @@ public static class UndoRedoManager
         }
     }
 
-    public static void Clear()
+    public static void Clear(bool ExecutePopActions = true)
     {
-        foreach (var action in _actionStack)
+        if (ExecutePopActions)
         {
-            foreach (var cleanupAction in action.CleanupAction)
+            foreach (var action in _actionStack)
             {
-                cleanupAction?.Invoke();
+                foreach (var cleanupAction in action.CleanupAction)
+                {
+                    cleanupAction?.Invoke();
+                }
             }
         }
         _actionStack.Clear();

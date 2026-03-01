@@ -13,6 +13,11 @@ namespace Managers
         private static Dictionary<Guid, (ImageData, ImageUI?)> images = [];
         public static List<ImageData> GetAllImages => [.. images.Select(x => x.Value.Item1).Where(x => !x.IsDeleted)];
 
+        public static void AddImages(List<ImageData> targetImages)
+        {
+            targetImages.Where(x => x != null).ToList().ForEach(x => images.TryAdd(x.guid, (x, null)));
+        }
+
         public static void LoadFromSave(List<ImageData> TargetImages)
         {
             images.Clear();
@@ -82,13 +87,22 @@ namespace Managers
         }
 
 
-        public static void CreateNewImageUIs(List<ImageData>? images)
+        public static List<ImageUI> CreateNewImageUIs(List<ImageData>? images)
         {
-            if (images == null) { return; }
+            if (images == null) { return []; }
+
+            List<ImageUI> createdUIs = [];
+
             foreach (ImageData image in images)
             {
-                CreateNewImageUI(image);
+                var CreatedImageUI = CreateNewImageUI(image);
+                if (CreatedImageUI != null)
+                {
+                    createdUIs.Add(CreatedImageUI);
+                }
             }
+
+            return createdUIs;
         }
 
         public static ImageUI? CreateNewImageUI(ImageData image)
@@ -157,6 +171,12 @@ namespace Managers
                     }
                 }
             }
+        }
+
+        public static void CleanUpDeletedImages()
+        {
+            var entriesToRemove = images.Where(x => x.Value.Item1 == null || x.Value.Item1.IsDeleted).Select(x => x.Key).ToList();
+            entriesToRemove.ForEach(x => images.Remove(x));
         }
 
         public static void RemoveImages(List<Guid> guids)

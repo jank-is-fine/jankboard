@@ -13,8 +13,6 @@ public class MainMenuScene : Scene
     private UITextLabel ErrorLabel = new(textAnchorPoint: TextAnchorPoint.Center_Center, isNineSlice: false);
     private UITextLabel SavesLabel = new(textAnchorPoint: TextAnchorPoint.Center_Center, isNineSlice: false);
 
-    private ConfirmationModal confirmationModal = new();
-
     public MainMenuScene()
     {
         CreateNewSaveButton = new
@@ -64,9 +62,7 @@ public class MainMenuScene : Scene
             IsDraggable = false
         };
 
-        confirmationModal.IsVisible = false;
-        confirmationModal.RenderOrder = 50;
-        Children.AddRange([ShowSettingsButton, confirmationModal, NewSaveInputfield, CreateNewSaveButton, SaveList, ErrorLabel, SavesLabel]);
+        Children.AddRange([ShowSettingsButton, NewSaveInputfield, CreateNewSaveButton, SaveList, ErrorLabel, SavesLabel]);
 
         RefreshSaveFiles();
         RecalcLayout();
@@ -79,7 +75,7 @@ public class MainMenuScene : Scene
         List<string> saves = SaveManager.GetAllSaves();
         foreach (string save in saves)
         {
-            var newSaveButton = new SaveFileButton(save, confirmationModal,RefreshSaveFiles)
+            var newSaveButton = new SaveFileButton(save, RefreshSaveFiles)
             {
                 IsDraggable = false,
             };
@@ -154,7 +150,6 @@ public class MainMenuScene : Scene
             12f + ShowSettingsButton.Transform.Scale.Y / 2f
         );
 
-        confirmationModal.RecalcSize();
     }
 
     public void CreateNewSave()
@@ -172,7 +167,7 @@ public class MainMenuScene : Scene
         Save newSave = new()
         {
             SaveName = TargetNameString,
-            SavePath = $"{SaveManager.SaveFolder}/{TargetNameString}.json"
+            SavePath = Path.Combine(SaveManager.SaveFolder, $"{TargetNameString}.json")
         };
         SaveManager.LoadFromSave(newSave);
         RenderManager.ChangeScene("Main");
@@ -216,7 +211,7 @@ public class MainMenuScene : Scene
     public override void Render()
     {
         TextRenderer.Clear();
-        foreach (var obj in Children.Where(x => x != null && x.IsVisible).Except([confirmationModal]))
+        foreach (var obj in Children.Where(x => x != null && x.IsVisible))
         {
             if (obj == null) { continue; }
             obj.Render();
@@ -228,11 +223,10 @@ public class MainMenuScene : Scene
         TextRenderer.Draw();
 
         TextRenderer.Clear();
-        confirmationModal.Render();
+        RenderManager.modal.Render();
         TextRenderer.Draw();
 
         var hoeverObject = UIobjectHandler.CurrentHoeverTarget;
-
         if (hoeverObject != null && hoeverObject.IsScreenSpace)
         {
             if (hoeverObject is UIButton)
@@ -251,7 +245,7 @@ public class MainMenuScene : Scene
         NewSaveInputfield.UnsubActions();
         NewSaveInputfield.ContentChanged -= NewSaveInputChanged;
         NewSaveInputfield.SubmitAction -= CreateNewSave;
-        
+
         SelectionManager.ClearSelection();
         NewSaveInputfield.SetText("");
     }

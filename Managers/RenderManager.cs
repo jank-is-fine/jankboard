@@ -38,6 +38,8 @@ namespace Managers
 
         private static FinalPass finalPass = new();
 
+        public static ConfirmationModal modal { get; private set; } = null!;
+
         public static void Init(List<Scene> AvailibleScenes)
         {
             Gl = ShaderManager.gl;
@@ -47,8 +49,17 @@ namespace Managers
 
             Scenes = AvailibleScenes;
 
-            InitEvents();
             InitFBO();
+
+            modal = new()
+            {
+                IsVisible = false,
+                RenderOrder = 50,
+                IsSelectable = true
+            };
+            modal.RecalcSize();
+
+            Window.Render += OnRender;
         }
 
         private static unsafe void InitFBO()
@@ -145,12 +156,7 @@ namespace Managers
                 scene?.RecalcSize();
                 scene?.RecalcLayout();
             }
-        }
-
-        public static void InitEvents()
-        {
-            Window.Render += OnRender;
-            Window.Closing += OnClose;
+            modal.RecalcSize();
         }
 
         public static void AddScene(Scene target)
@@ -287,7 +293,7 @@ namespace Managers
             Gl.ClearColor(Settings.BackgroundColor);
         }
 
-        private static void OnClose()
+        public static void Dispose()
         {
             Window.Render -= OnRender;
             Window.FramebufferResize -= OnFramebufferResize;

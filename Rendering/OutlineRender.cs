@@ -13,7 +13,6 @@ public static class OutlineRender
     private static VertexArrayObject<float, uint> _vao = null!;
     private static List<float> _vertexData = [];
     private static List<uint> _indices = [];
-    private static float animationTime = 0;
     private static Texture? NoiseTexture;
 
     public static void Init()
@@ -154,14 +153,13 @@ public static class OutlineRender
     public static unsafe void Draw()
     {
         UpdateBuffers();
-        WindowManager.TryGetCurrentAppTime(out animationTime);
         shader?.Use();
 
         shader?.SetUniform("uNoiseTexture", 0);
         shader?.SetUniform("uProjection", Camera.GetStationalProjectionMatrix());
         shader?.SetUniform("uView", Matrix4x4.Identity);
         shader?.SetUniform("uModel", Matrix4x4.Identity);
-        shader?.SetUniform("uTime", animationTime);
+        shader?.SetUniform("uTime", (float)WindowManager.window.Time);
 
         NoiseTexture?.Bind();
 

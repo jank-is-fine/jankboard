@@ -4,78 +4,66 @@ using Rendering.UI;
 
 public class SaveManager
 {
-    public static string SaveFolder => $"{Settings.ApplicationName} Resources{Path.DirectorySeparatorChar}saves";
-    public static string SettingSaveFolder => $"{Settings.ApplicationName} Resources{Path.DirectorySeparatorChar}settings";
-    public static string SettingSaveName = "settings.json";
-    public static Save? CurrentSave = null;
-    public static void SaveToFile()
-    {
-        if (!Directory.Exists(SaveFolder))
-        {
-            Directory.CreateDirectory(SaveFolder);
-        }
+    private static string BaseFolder => $"{Settings.ApplicationName} Resources";
+    public static string SaveFolder => Path.Combine(BaseFolder, "saves");
+    private static string AutoSaveFolder => Path.Combine(SaveFolder, "auto_saves");
+    private static string SettingSaveFolder => Path.Combine(BaseFolder, "settings");
+    private const string SettingSaveName = "settings.json";
+    private static Save? CurrentSave = null;
 
-        if (CurrentSave == null)
-        {
-            //Debug.WriteLine("Current Save is null - cannot save");
-            return;
-        }
+    public static void SaveToFile(bool autoSave = false)
+    {
+        if (CurrentSave == null) return;
+
+        string targetFolder = autoSave ? AutoSaveFolder : SaveFolder;
+        Directory.CreateDirectory(targetFolder);
 
         UpdateSave();
-        string SerializedData = JsonConvert.SerializeObject(CurrentSave);
+        string savePath = Path.Combine(targetFolder, $"{CurrentSave.SaveName}.json");
 
-        if (!Directory.Exists(CurrentSave.SavePath))
+        if (!autoSave)
         {
-            CurrentSave.SavePath = $"{Path.Combine(SaveFolder,CurrentSave.SaveName)}.json";
+            CurrentSave.SavePath = savePath;
         }
 
-        File.WriteAllText(CurrentSave.SavePath, SerializedData);
+        string serializedData = JsonConvert.SerializeObject(CurrentSave);
+        WriteTextToFile(savePath, serializedData, $"Save (Auto-Save: {autoSave})");
     }
 
     public static bool LoadSettings()
     {
-        if (!Directory.Exists(SettingSaveFolder))
-        {
-            Directory.CreateDirectory(SettingSaveFolder);
-        }
+        Directory.CreateDirectory(SettingSaveFolder);
+        string filePath = Path.Combine(SettingSaveFolder, SettingSaveName);
 
-        string saveFilePath = Path.Combine(SettingSaveFolder, SettingSaveName);
-        if (!File.Exists(saveFilePath))
+        if (!File.Exists(filePath))
         {
-            Logger.Log("SaveManager", "Settings file not found!  Path: " + saveFilePath, LogLevel.WARNING);
-
+            Logger.Log("SaveManager", $"Settings file not found: {filePath}", LogLevel.WARNING);
             return false;
         }
 
-        string SaveInString = File.ReadAllText(saveFilePath);
-        SettingsSave? ReadSave = JsonConvert.DeserializeObject<SettingsSave>(SaveInString);
+        string? content = ReadTextFromPath(filePath);
+        if (string.IsNullOrEmpty(content)) { return false; }
 
-        if (ReadSave == null)
+        var settings = JsonConvert.DeserializeObject<SettingsSave>(content);
+        if (settings == null)
         {
-            Logger.Log("SaveManager", "Settings file IS found but could not Convert or read!  Path: " + saveFilePath, LogLevel.ERROR);
+            Logger.Log("SaveManager", $"Failed to deserialize settings: {filePath}", LogLevel.ERROR);
             return false;
         }
 
-        Settings.LoadFromSave(ReadSave);
-
+        Settings.LoadFromSave(settings);
         return true;
     }
 
-    public static bool SaveSettingsToDisk()
+    public static void SaveSettingsToDisk()
     {
-        if (!Directory.Exists(SettingSaveFolder))
-        {
-            Directory.CreateDirectory(SettingSaveFolder);
-        }
+        Directory.CreateDirectory(SettingSaveFolder);
+        string filePath = Path.Combine(SettingSaveFolder, SettingSaveName);
 
-        string saveFilePath = Path.Combine(SettingSaveFolder, SettingSaveName);
+        var settings = new SettingsSave();
+        string serialized = JsonConvert.SerializeObject(settings, Formatting.Indented);
 
-        var SettingsSave = new SettingsSave();
-        string SerializedData = JsonConvert.SerializeObject(SettingsSave, Formatting.Indented);
-
-        File.WriteAllText(saveFilePath, SerializedData);
-
-        return true;
+        WriteTextToFile(filePath, serialized, "Settings");
     }
 
     private static void UpdateSave()
@@ -103,7 +91,6 @@ public class SaveManager
     public static void LoadFromSave(Save TargetSave)
     {
         CurrentSave = TargetSave;
-        //TextureHandler.DisposeTextureLoadedFromPath();
 
         EntryManager.LoadFromSave(TargetSave.Entries);
         ConnectionManager.LoadFromSave(TargetSave.Connections);
@@ -114,24 +101,87 @@ public class SaveManager
         RenderManager.ChangeScene("Main");
     }
 
-    public static void LoadFromDisk(string FilePath)
+    public static void LoadSaveFromDisk(string targetFilePath, bool ignoreAutoSave = false)
     {
-        if (!File.Exists(FilePath))
+        if (!File.Exists(targetFilePath))
         {
-            Logger.Log("SaveManager", "Save File not found! Path: " + FilePath, LogLevel.FATAL);
+            HandleMissingFile(targetFilePath, ignoreAutoSave);
             return;
         }
 
-        string SaveInString = File.ReadAllText(FilePath);
-
-        Save? ReadSave = JsonConvert.DeserializeObject<Save>(SaveInString);
-        if (ReadSave != null)
+        if (!ignoreAutoSave && Path.GetDirectoryName(targetFilePath) != AutoSaveFolder)
         {
-            LoadFromSave(ReadSave);
+            if (TryHandleNewerAutoSave(targetFilePath)) return;
         }
-        else
+
+        LoadSaveFile(targetFilePath);
+    }
+
+    private static void HandleMissingFile(string targetFilePath, bool ignoreAutoSave)
+    {
+        Logger.Log("SaveManager", $"Save file not found: {targetFilePath}. Searching for auto save...", LogLevel.ERROR);
+
+        if (ignoreAutoSave) return;
+
+        string autoSavePath = Path.Combine(AutoSaveFolder, Path.GetFileName(targetFilePath));
+
+        if (!File.Exists(autoSavePath))
         {
-            Logger.Log("SaveManager", "Save file IS found but could not Convert or read!  Path: " + FilePath, LogLevel.FATAL);
+            Logger.Log("SaveManager", $"Neither save nor auto-save found: {targetFilePath}", LogLevel.FATAL);
+            return;
+        }
+
+        Logger.Log("SaveManager", $"Save not found but auto-save exists: {autoSavePath}", LogLevel.WARNING);
+
+        RenderManager.modal.ShowModal(
+            Question: "File not found. Auto save exists. Load auto save?",
+            OnConfirmActions: [() => LoadSaveFromDisk(autoSavePath, true)],
+            OnCancelActions: []
+        );
+    }
+
+    private static bool TryHandleNewerAutoSave(string targetFilePath)
+    {
+        string autoSavePath = Path.Combine(AutoSaveFolder, Path.GetFileName(targetFilePath));
+
+        if (!File.Exists(autoSavePath)) return false;
+
+        DateTime saveTime = File.GetLastWriteTime(targetFilePath);
+        DateTime autoSaveTime = File.GetLastWriteTime(autoSavePath);
+
+        if (autoSaveTime <= saveTime) return false;
+
+        RenderManager.modal.ShowModal(
+            Question: "The auto save is newer. Load auto save instead?",
+            OnConfirmActions: [() => LoadSaveFromDisk(autoSavePath, true)],
+            OnCancelActions: [() => LoadSaveFromDisk(targetFilePath, true)]
+        );
+
+        return true;
+    }
+
+    private static void LoadSaveFile(string filePath)
+    {
+        try
+        {
+            string? content = ReadTextFromPath(filePath);
+            if (string.IsNullOrEmpty(content)) { return; }
+
+            Save? save = JsonConvert.DeserializeObject<Save>(content);
+
+            if (save != null)
+            {
+                LoadFromSave(save);
+                Logger.Log("SaveManager", $"Save loaded: {filePath}", LogLevel.INFO);
+            }
+            else
+            {
+                Logger.Log("SaveManager", $"Failed to deserialize save: {filePath}", LogLevel.FATAL);
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.Log("SaveManager", $"Error loading save: {filePath}\n{e.Message}", LogLevel.FATAL);
         }
     }
 
@@ -141,16 +191,23 @@ public class SaveManager
 
         try
         {
-            File.Delete($"{SaveFolder}/{saveName}.json");
+            File.Delete(Path.Combine(SaveFolder, $"{saveName}.json"));
         }
         catch (Exception e)
         {
             Logger.Log
             (
-                "SaveManager", $"Could not delete Save.\nPath: {SaveFolder}/{saveName}.json\nError: {e.Message}\nStacktrace:\n{e.StackTrace}",
+                "SaveManager",
+                $"Could not delete Save.\nPath: {Path.Combine(SaveFolder, $"{saveName}.json")}\nError: {e.Message}",
                 LogLevel.ERROR
             );
         }
+    }
+
+    public static bool DoesSaveExist(string target)
+    {
+        string path = Path.Combine(SaveFolder, $"{target}.json");
+        return File.Exists(path);
     }
 
     public static List<string> GetAllSaves()
@@ -160,13 +217,33 @@ public class SaveManager
         return [.. Directory.GetFiles(SaveFolder).Where(x => x.EndsWith(".json"))];
     }
 
-    public static bool DoesSaveExist(string target)
+    private static string? ReadTextFromPath(string filePath)
     {
-        if (File.Exists($"{SaveFolder}/{target}.json"))
+        try
         {
+            return File.ReadAllText(filePath);
+        }
+        catch (Exception e)
+        {
+            Logger.Log("SaveManager", $"Failed to read file: {filePath}\nError: {e.Message}", LogLevel.ERROR);
+            return null;
+        }
+    }
+
+    private static bool WriteTextToFile(string filePath, string content, string context = "Save")
+    {
+        try
+        {
+            File.WriteAllText(filePath, content);
             return true;
         }
-        return false;
+        catch (Exception e)
+        {
+            Logger.Log("SaveManager",
+                $"Could not write {context}. Path: {filePath}\nException: {e.Message}",
+                LogLevel.FATAL);
+            return false;
+        }
     }
 }
 

@@ -16,6 +16,11 @@ namespace Managers
 
         public static InputField? inputField;
 
+        public static void AddGroups(List<Group> targetEntries)
+        {
+            targetEntries.Where(x => x != null).ToList().ForEach(x => groups.TryAdd(x.guid, (x, null)));
+        }
+
         public static void Init()
         {
             groups = [];
@@ -139,20 +144,24 @@ namespace Managers
         }
 
 
-        static void CreateNewGroupUIs(List<Group> TargetGroups)
+        public static List<GroupUI> CreateNewGroupUIs(List<Group> TargetGroups)
         {
+            List<GroupUI> CreatedUIs = [];
             foreach (Group group in TargetGroups)
             {
                 if (groups.TryGetValue(group.guid, out var foundValuePair))
                 {
                     var spawnedEntry = CreateNewGroupUI(group);
                     groups[group.guid] = (foundValuePair.Item1, spawnedEntry);
+                    CreatedUIs.Add(spawnedEntry);
                 }
                 else
                 {
                     Logger.Log("GroupManager", $"Group {group.guid} not found when creating UI!", LogLevel.FATAL);
                 }
             }
+
+            return CreatedUIs;
         }
 
         static GroupUI CreateNewGroupUI(Group group)
@@ -162,7 +171,7 @@ namespace Managers
                 Transform = { Position = group.position },
                 RenderOrder = 0,
             };
-            
+
             uI.RecalcMinSize();
             uI.Transform.Scale = group.Size;
             uI.RecalcHandlerPos();
@@ -219,6 +228,12 @@ namespace Managers
                     }
                 }
             }
+        }
+
+        public static void CleanUpDeletedGroups()
+        {
+            var entriesToRemove = groups.Where(x => x.Value.Item1 == null || x.Value.Item1.IsDeleted).Select(x => x.Key).ToList();
+            entriesToRemove.ForEach(x => groups.Remove(x));
         }
 
         public static void RemoveGroups(List<Guid> guids)

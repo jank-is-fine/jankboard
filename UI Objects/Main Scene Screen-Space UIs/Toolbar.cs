@@ -54,7 +54,7 @@ public class Toolbar : UIImage
     UIButton Save = new
     (
         " ",
-        [SaveManager.SaveToFile],
+        [() => SaveManager.SaveToFile()],
         nineSlice: false,
         recalcSize: false
     )

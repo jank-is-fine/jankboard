@@ -19,16 +19,16 @@ namespace Managers
     public static class WindowManager
     {
         #region Variables and references
+        private static readonly Stopwatch AutoSaveStopWatch = Stopwatch.StartNew();
 
         public static IWindow window = null!;
         public static Vector2 GetWindowSize() => new(window.Size.X, window.Size.Y);
-        private static Stopwatch? AppTime;
+
         public static SettingsScene SettingsMenu = null!;
         public static MainMenuScene MainMenu = null!;
         public static MainScene MainScene = null!;
 
         public static readonly Assembly Assembly = Assembly.GetExecutingAssembly();
-
 
         #endregion Variables and references
 
@@ -48,12 +48,11 @@ namespace Managers
 
             window.Run();
             window.Dispose();
+
         }
 
         private static void OnLoad()
         {
-            //ResourceHelper.LogAllResources();
-
             InputDeviceHandler.Init(window);
             UIobjectHandler.Init();
 
@@ -82,10 +81,6 @@ namespace Managers
 
             RenderManager.Init([MainMenu, SettingsMenu, MainScene]);
 
-            AppTime = Stopwatch.StartNew();
-            //FpsCounter.Enable();
-            //ShaderManager.SetCurrentFont("OpenSans");
-
             OutlineRender.Init();
 
             if (SaveManager.LoadSettings())
@@ -99,7 +94,6 @@ namespace Managers
                 RenderManager.ChangeScene(FirstLaunchScene.SceneName);
             }
 
-            //UndoRedoManager.TestUndoRedo();
             ClipboardManager.Init();
 
             AudioHandler.Init();
@@ -128,6 +122,12 @@ namespace Managers
         private static void OnUpdate(double deltaTime)
         {
             FPSCounter.Update(deltaTime);
+
+            if (AutoSaveStopWatch.Elapsed.TotalSeconds > Settings.AutoSaveTimeInSeconds)
+            {
+                SaveManager.SaveToFile(autoSave: true);
+                AutoSaveStopWatch.Restart();
+            }
         }
 
         private static void OnFramebufferResize(Vector2D<int> newSize)
@@ -143,30 +143,17 @@ namespace Managers
             RenderManager.OnFramebufferResize(window.Size);
         }
 
-        public static void ApplicationQuit()
-        {
-            AudioHandler.PlaySound("maximize_008");
-            window.Close();
-        }
-
         private static void OnClose()
         {
+            window.Update -= OnUpdate;
             window.Closing -= OnClose;
 
             TextureHandler.Dispose();
-            window.Update -= OnUpdate;
             ChunkManager.Clear();
             AudioHandler.Dispose();
+            UIobjectHandler.Dispose();
+            RenderManager.Dispose();
         }
 
-
-        public static bool TryGetCurrentAppTime(out float CurrentApptime)
-        {
-            if (AppTime == null) { CurrentApptime = -100; return false; }
-
-            CurrentApptime = (float)AppTime.Elapsed.TotalSeconds;
-
-            return true;
-        }
     }
 }
