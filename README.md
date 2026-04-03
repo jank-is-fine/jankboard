@@ -3,6 +3,9 @@
 
 # How to run
 
+You need the dotnet runtime to be installed to run this.
+Go to [https://dotnet.microsoft.com/en-us/download/dotnet/9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) and follow the instructions to install it. 
+
 If you want to try out Jankboard, you can go to the [releases](https://github.com/jank-is-fine/jankboard/releases) page and download the executable for your OS.  
 **Note:** This has not been tested on macOS at all. Windows has been tested only a little, and Linux is the only platform that’s actually been tested thoroughly.
 
@@ -73,7 +76,7 @@ I learned a good deal about OpenGL and GLSL, including (but not limited to) thes
 
 ## Future of this project
 
-~~I might revisit this project later, but it’ll be a while. In the meantime, if you want to improve or contribute, you’re probably better off forking the repo and doing it your way™.~~
+if you want to improve or contribute, you’re probably better off forking the repo and doing it your way™.
 
 
 ## Font atlas creation
