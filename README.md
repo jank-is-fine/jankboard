@@ -3,7 +3,7 @@
 
 # How to run
 
-You need the dotnet runtime to be installed to run this.
+You need the dotnet desktop runtime to be installed to run this.
 Go to [https://dotnet.microsoft.com/en-us/download/dotnet/9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) and follow the instructions to install it. 
 
 If you want to try out Jankboard, you can go to the [releases](https://github.com/jank-is-fine/jankboard/releases) page and download the executable for your OS.  
