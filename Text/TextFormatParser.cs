@@ -13,13 +13,14 @@ public static class TextFormatParser
         ParsedText textStyle = new();
 
         var lines = text.Split('\n');
-        FontType lastStyle = FontType.REGULAR;
+        TextSegment? lastStyle = null;
+
         foreach (var line in lines)
         {
             var parsedLine = ParseTextLine(line, lastStyle);
             if (parsedLine.lineSegments.LastOrDefault() != default)
             {
-                lastStyle = parsedLine.lineSegments.Last().FontType;
+                lastStyle = parsedLine.lineSegments.Last();
             }
 
             textStyle.lines.Add(parsedLine);
@@ -28,7 +29,7 @@ public static class TextFormatParser
         return textStyle;
     }
 
-    private static LineTextStyle ParseTextLine(string line, FontType lastType)
+    private static LineTextStyle ParseTextLine(string line, TextSegment? lastStyle)
     {
         LineTextStyle lineStyle = new();
 
@@ -36,26 +37,86 @@ public static class TextFormatParser
         bool italic = false;
         Color? colorOverride = null;
 
-        var buffer = new System.Text.StringBuilder();
-
-        switch (lastType)
+        if (line.TrimStart().StartsWith("[align=", StringComparison.OrdinalIgnoreCase))
         {
-            case FontType.ITALIC:
-                italic = true;
-                break;
-
-            case FontType.ITALIC_BOLD:
-                bold = italic = true;
-                break;
-
-            case FontType.BOLD:
-                bold = true;
-                break;
-
-            default:
-                break;
+            int tagStart = line.IndexOf('[');
+            int tagEnd = line.IndexOf(']', tagStart);
+            if (tagEnd != -1)
+            {
+                string tag = line.Substring(tagStart + 1, tagEnd - tagStart - 1);
+                if (tag.StartsWith("align=", StringComparison.OrdinalIgnoreCase))
+                {
+                    string alignValue = tag[6..];
+                    var anchor = ParseAlignment(alignValue);
+                    if (anchor != null)
+                    {
+                        lineStyle.AlignemtOverride = anchor;
+                        line = line[(tagEnd + 1)..];
+                    }
+                }
+            }
         }
 
+        if (line.TrimStart().StartsWith("[size=", StringComparison.OrdinalIgnoreCase))
+        {
+            int tagStart = line.IndexOf('[');
+            int tagEnd = line.IndexOf(']', tagStart);
+            if (tagEnd != -1)
+            {
+                string tag = line[1..tagEnd];
+                string sizeValue = tag[5..];
+                if (float.TryParse(sizeValue, out float size))
+                {
+                    lineStyle.SizeOverride = size;
+                    line = line.Remove(tagStart, tagEnd - tagStart + 1);
+                }
+            }
+        }
+
+        if (line.TrimStart().StartsWith("[align=", StringComparison.OrdinalIgnoreCase))
+        {
+            int tagStart = line.IndexOf('[');
+            int tagEnd = line.IndexOf(']', tagStart);
+            if (tagEnd != -1)
+            {
+                string tag = line.Substring(tagStart + 1, tagEnd - tagStart - 1);
+                if (tag.StartsWith("align=", StringComparison.OrdinalIgnoreCase))
+                {
+                    string alignValue = tag[6..];
+                    var anchor = ParseAlignment(alignValue);
+                    if (anchor != null)
+                    {
+                        lineStyle.AlignemtOverride = anchor;
+                        line = line[(tagEnd + 1)..];
+                    }
+                }
+            }
+        }
+
+        var buffer = new System.Text.StringBuilder();
+
+        if (lastStyle != null && lastStyle != default)
+        {
+            switch (lastStyle.FontType)
+            {
+                case FontType.ITALIC:
+                    italic = true;
+                    break;
+
+                case FontType.ITALIC_BOLD:
+                    bold = italic = true;
+                    break;
+
+                case FontType.BOLD:
+                    bold = true;
+                    break;
+
+                default:
+                    break;
+            }
+
+            colorOverride = lastStyle.ColorOverride;
+        }
 
         for (int i = 0; i < line.Length; i++)
         {
@@ -73,7 +134,7 @@ public static class TextFormatParser
                     {
                         Text = buffer.ToString(),
                         FontType = ResolveFontType(bold, italic),
-                        ColorOverride = colorOverride
+                        ColorOverride = colorOverride,
                     });
                     buffer.Clear();
                 }
@@ -125,13 +186,14 @@ public static class TextFormatParser
             {
                 Text = buffer.ToString(),
                 FontType = ResolveFontType(bold, italic),
-                ColorOverride = colorOverride
+                ColorOverride = colorOverride,
             });
         }
 
+        lineStyle.TextSizeWidthUnscaled = TextHelper.GetStringLineRenderBounds(lineStyle.lineSegments).Width;
+
         return lineStyle;
     }
-
 
     private static Color? ParseColor(string HexcodeOrKnownColor)
     {
@@ -152,8 +214,17 @@ public static class TextFormatParser
             }
         }
 
-
         return null;
+    }
+
+    private static TextAnchorPoint? ParseAlignment(string aligmentText)
+    {
+        return aligmentText.Trim() switch
+        {
+            "center" => TextAnchorPoint.Center_Center,
+            "right" => TextAnchorPoint.Right_Center,
+            _ => null,
+        };
     }
 
     private static FontType ResolveFontType(bool bold, bool italic)
@@ -181,5 +252,8 @@ public class ParsedText
 
 public class LineTextStyle
 {
+    public TextAnchorPoint? AlignemtOverride = null;
+    public float? SizeOverride = null;
+    public float? TextSizeWidthUnscaled = null;
     public List<TextSegment> lineSegments = [];
 }

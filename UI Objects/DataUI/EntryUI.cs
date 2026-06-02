@@ -3,33 +3,49 @@ using System.Numerics;
 
 namespace Rendering.UI
 {
-    public class EntryUI : UIObject
+    public class EntryUI : ResizeableUI
     {
         public Entry ReferenceEntry;
         ParsedText ParsedText;
         public bool _isEditing { get; private set; } = false;
         public override Color TextureColor => GetBackgroundColor();
-        public override long RenderKey 
-        { 
+        public override long RenderKey
+        {
             get => ReferenceEntry.SavedRenderKey;
-            set 
+            set
             {
                 ReferenceEntry.SavedRenderKey = value;
             }
         }
 
-        public EntryUI(Entry targetEntry)
+        public EntryUI(Entry targetEntry) : base()
         {
             ReferenceEntry = targetEntry;
             ParsedText = TextFormatParser.ParseText(ReferenceEntry.Content);
 
-            RecalcContainerSize();
+            RecalculateMinScaleSize();
+        }
+
+        public override void OnDragResizeHandle(int handleIndex)
+        {
+            base.OnDragResizeHandle(handleIndex);
+            UpdateReferenceEntry();
+        }
+
+        private void UpdateReferenceEntry()
+        {
+            if (ReferenceEntry != null)
+            {
+                ReferenceEntry.position = Transform.Position;
+                ReferenceEntry.Size = Transform.Scale;
+            }
         }
 
 
         public override void OnDrag()
         {
             ReferenceEntry.position = Transform.Position;
+            UpdateHandlePositions();
         }
 
         public override void RenderText()
@@ -40,20 +56,22 @@ namespace Rendering.UI
                 Transform.Position.Y + (Transform.Scale.Y / 2f) - 14
             );
 
-            TextRenderer.RenderTextWorldParsed(
-                ParsedText,
-                textPos,
-                Settings.ColorToVec4(GetTextColor()),
-                Settings.TextSize
+            TextRenderer.RenderTextParsed
+            (
+                textStyle: ParsedText,
+                position: textPos,
+                baseColor: Settings.ColorToVec4(GetTextColor()),
+                sourceWidth: Transform.Scale.X - 36,
+                WorldSpace: true
             );
-
         }
 
-        public void RecalcContainerSize()
+        public void RecalculateMinScaleSize()
         {
             RectangleF textBox = TextHelper.GetStringRenderBox(ParsedText);
 
-            Transform.Scale = new(textBox.Width + 36, textBox.Height + 32);
+            MinWidth = textBox.Width + 36;
+            MinHeight = textBox.Height + 32;
         }
 
 
@@ -69,10 +87,11 @@ namespace Rendering.UI
             {
                 ReferenceEntry.Content = targetContent;
                 ParsedText = TextFormatParser.ParseText(targetContent);
+                RecalculateMinScaleSize();
+                OnDragResizeHandle(3);
             }
 
             _isEditing = false;
-            RecalcContainerSize();
         }
 
         private Color GetBackgroundColor()
@@ -99,9 +118,5 @@ namespace Rendering.UI
             };
         }
 
-        public override void Dispose()
-        {
-            
-        }
     }
 }

@@ -36,12 +36,13 @@ public static class FPSCounter
 
         TextRenderer.Clear();
 
-        TextRenderer.RenderText($"FPS: {(int)CurrentFPS}",
-                               new(0, 0),
-                               Settings.ColorToVec4(TextHelper.GetContrastColor(Settings.BackgroundColor)),
-                               Settings.TextSize,
-                               true
-                               );
+        TextRenderer.RenderText
+        (
+            $"FPS: {(int)CurrentFPS}",
+            new(0, 0),
+            Settings.ColorToVec4(TextHelper.GetContrastColor(Settings.BackgroundColor)),
+            Settings.TextSize
+        );
 
         TextRenderer.Draw();
         //Debug.WriteLine(CurrentFPS);

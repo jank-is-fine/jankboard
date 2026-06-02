@@ -488,29 +488,32 @@ public class UIColorPicker : UIImage
             obj.Render();
         }
 
-        TextRenderer.RenderText(
+        TextRenderer.RenderText
+        (
             "HSV",
              new(_ColorDegreeSlider.Transform.Position.X - _ColorDegreeSlider.Transform.Scale.X / 2 - CharOffset.X,
             _ColorDegreeSlider.Transform.Position.Y - (_ColorDegreeSlider.Transform.Scale.Y / 4) - CharacterOffset.Y),
             Settings.ColorToVec4(Settings.TextColor),
-            Settings.TextSize,
-            true);
+            Settings.TextSize
+        );
 
-        TextRenderer.RenderText(
+        TextRenderer.RenderText
+        (
             "Alpha",
             new(_AlphaSlider.Transform.Position.X - _AlphaSlider.Transform.Scale.X / 2 - CharOffset.X,
             _AlphaSlider.Transform.Position.Y - (_AlphaSlider.Transform.Scale.Y / 4) - CharacterOffset.Y),
             Settings.ColorToVec4(Settings.TextColor),
-            Settings.TextSize,
-            true);
+            Settings.TextSize
+        );
 
-        TextRenderer.RenderText(
+        TextRenderer.RenderText
+        (
             "HEX",
             Camera.WorldToScreen(new(HexInputfield.Transform.Position.X - HexInputfield.Transform.Scale.X / 2 - CharOffset.X,
             HexInputfield.Transform.Position.Y + (HexInputfield.Transform.Scale.Y / 4) + CharacterOffset.Y)),
             Settings.ColorToVec4(Settings.TextColor),
-            Settings.TextSize,
-            true);
+            Settings.TextSize
+        );
     }
 
     public override void Dispose()

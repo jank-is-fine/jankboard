@@ -159,7 +159,7 @@ public partial class MainScene : Scene
 
     private void HandleLeftClick(IMouse mouse)
     {
-        _mouseDownObject = UIobjectHandler.GetObjectUnderMouse();
+        _mouseDownObject = UIobjectHandler.CurrentHoeverTarget;
         _dragStart = mouse.Position;
         _hasExceededDragThreshold = false;
 
@@ -186,7 +186,7 @@ public partial class MainScene : Scene
     {
         if (button != MouseButton.Left) return;
 
-        var uIObject = UIobjectHandler.GetObjectUnderMouse();
+        var uIObject = UIobjectHandler.CurrentHoeverTarget;
         if (uIObject != null)
         {
             if (uIObject is EntryUI entry)
@@ -212,7 +212,7 @@ public partial class MainScene : Scene
         }
         else if (_isDragging)
         {
-            var currentObject = UIobjectHandler.GetObjectUnderMouse();
+            var currentObject = UIobjectHandler.CurrentHoeverTarget;
 
             if (InputDeviceHandler.IsKeyPressed(Key.AltLeft))
             {
@@ -247,7 +247,7 @@ public partial class MainScene : Scene
 
         if (_mouseDownObject != null && !_hasExceededDragThreshold)
         {
-            var mouseUpObject = UIobjectHandler.GetObjectUnderMouse();
+            var mouseUpObject = UIobjectHandler.CurrentHoeverTarget;
             if (mouseUpObject == _mouseDownObject)
             {
                 UIobjectHandler.HandleClickOnObject(_mouseDownObject);
@@ -271,7 +271,7 @@ public partial class MainScene : Scene
             return;
         }
 
-        var rightClickTarget = UIobjectHandler.GetObjectUnderMouse();
+        var rightClickTarget = UIobjectHandler.CurrentHoeverTarget;
         if (rightClickTarget != null)
         {
             SelectionManager.Select(rightClickTarget, SelectionOption.EXCLUSIVE_ADD);

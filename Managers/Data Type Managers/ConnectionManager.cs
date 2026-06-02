@@ -170,8 +170,8 @@ namespace Managers
                     RenderOrder = 2,
                     IsDraggable = false,
                 };
-
-                ChunkManager.AddObject(uI);
+                
+                UIobjectHandler.AddObject(uI);
                 ActiveConnections.Add(uI);
                 return uI;
             }

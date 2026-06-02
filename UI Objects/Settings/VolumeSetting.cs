@@ -109,7 +109,7 @@ public class VolumeSetting : UIImage
         TextRenderer.RenderTextParsed(
             SettingsNameParsed,
             new(Transform.Position.X - Transform.Scale.X / 2f, Transform.Position.Y - Transform.Scale.Y / 2f),
-            Settings.ColorToVec4(Settings.TextColor),
+            Settings.ColorToVec4(TextColor),
             Settings.TextSize
         );
     }

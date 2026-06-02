@@ -36,16 +36,6 @@ public class MsdfFontCollection(MsdfFont regularFont, MsdfFont? boldFont = null,
             return true;
         }
 
-        if (fontType != FontType.REGULAR)
-        {
-            targetFont = GetFont(FontType.REGULAR);
-            if (targetFont?.Glyphs.TryGetValue(targetCharacter, out Foundglyph) == true)
-            {
-                glyph = Foundglyph;
-                return true;
-            }
-        }
-
         glyph = null;
         return false;
     }

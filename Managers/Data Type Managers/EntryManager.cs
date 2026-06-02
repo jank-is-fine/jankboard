@@ -107,23 +107,10 @@ namespace Managers
                 var formerParent = CurrentParentEntry;
                 CurrentParentEntry = (Guid)target;
 
-                var allElementsSnapshot = ChunkManager.GetAllObjects()?.ToList() ?? [];
 
-                if (allElementsSnapshot.Count > 0)
-                {
-                    var sortedElements = allElementsSnapshot
-                        .Where(x => x != null && !x.IsScreenSpace)
-                        .OrderBy(x => x.RenderKey)
-                        .ToList();
-
-                    for (int i = 0; i < sortedElements.Count; i++)
-                    {
-                        sortedElements[i].RenderKey = i;
-                    }
-                }
 
                 SelectionManager.ClearSelection();
-                ChunkManager.Clear();
+                UIobjectHandler.Clear();
 
                 List<Entry> targetEntries =
                 [
@@ -148,7 +135,7 @@ namespace Managers
 
                 LayerLoaded?.Invoke(CurrentParentEntry);
 
-                var allElementsInNewLayer = ChunkManager.GetAllObjects()?.ToList() ?? [];
+                var allElementsInNewLayer = UIobjectHandler.GetAllObjects()?.ToList() ?? [];
 
                 if (allElementsInNewLayer.Count > 0)
                 {
@@ -195,7 +182,6 @@ namespace Managers
             */
         }
 
-
         public static void CreateNewEntry(Vector2? targetPos)
         {
             Vector2 spawnPos;
@@ -232,11 +218,15 @@ namespace Managers
         {
             EntryUI uI = new(entry)
             {
-                Transform = { Position = entry.position, Scale = new(100, 100) },
+                Transform = { Position = entry.position, Scale = new(100, 25) },
                 RenderOrder = 3,
             };
-            uI.RecalcContainerSize();
-            ChunkManager.AddObject(uI);
+            uI.RecalculateMinScaleSize();
+            uI.Transform.Scale = entry.Size;
+            uI.UpdateHandlePositions();
+            uI.OnDragResizeHandle(3);
+            
+            UIobjectHandler.AddObject(uI);
             return uI;
         }
 
@@ -424,7 +414,7 @@ namespace Managers
         {
             foreach (var entry in entries)
             {
-                entry.Value.Item2?.RecalcContainerSize();
+                entry.Value.Item2?.RecalculateMinScaleSize();
             }
         }
     }

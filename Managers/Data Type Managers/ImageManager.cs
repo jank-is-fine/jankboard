@@ -114,9 +114,9 @@ namespace Managers
                     Transform = { Position = image.position, Scale = image.Size },
                     RenderOrder = 1,
                 };
-                uI.RecalcHandlerPos();
+                uI.UpdateHandlePositions();
 
-                ChunkManager.AddObject(uI);
+                UIobjectHandler.AddObject(uI);
 
                 images[image.guid] = (image, uI);
 

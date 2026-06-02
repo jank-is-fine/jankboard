@@ -66,23 +66,14 @@ public class UITextLabel : UIImage
 
         base.Render();
 
-        if (IsScreenSpace)
-        {
-            TextRenderer.RenderTextParsed(
-                ParsedText,
-                TextHelper.CalculateTextPosition(Text, Transform.Position, Transform.Scale, TextAnchorPoint, IsScreenSpace),
-                Settings.ColorToVec4(TextColor),
-                Settings.TextSize
-            );
-        }
-        else
-        {
-            TextRenderer.RenderTextWorldParsed(
-                ParsedText,
-                TextHelper.CalculateTextPosition(Text, Transform.Position, Transform.Scale, TextAnchorPoint, IsScreenSpace),
-                Settings.ColorToVec4(TextColor),
-                Settings.TextSize
-            );
-        }
+        TextRenderer.RenderTextParsed
+        (
+            textStyle: ParsedText,
+            position: TextHelper.CalculateTextPosition(Text, Transform.Position, Transform.Scale, TextAnchorPoint, IsScreenSpace),
+            baseColor: Settings.ColorToVec4(TextColor),
+            sourceWidth: Transform.Scale.X,
+            WorldSpace: !IsScreenSpace
+        );
+
     }
 }

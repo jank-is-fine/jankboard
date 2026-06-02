@@ -13,6 +13,8 @@ namespace Rendering.UI
         private Vector2? _target;
         private float[] _lineVertices = [];
         private uint[] _lineIndices = [];
+        private EntryUI? _sourceEntry = null;
+        private EntryUI? _targetEntry = null;
 
         public override long RenderKey
         {
@@ -64,10 +66,12 @@ namespace Rendering.UI
 
         public void UpdateConnection()
         {
-            var sourceEntry = EntryManager.GetEntryUIByGuid(ReferenceConnection.SourceEntry);
-            var targetEntry = EntryManager.GetEntryUIByGuid(ReferenceConnection.TargetEntry);
+            if (!IsVisible) { RenderReady = false; return; } else { RenderReady = true; }
 
-            if (sourceEntry == null || targetEntry == null)
+            _sourceEntry ??= EntryManager.GetEntryUIByGuid(ReferenceConnection.SourceEntry);
+            _targetEntry ??= EntryManager.GetEntryUIByGuid(ReferenceConnection.TargetEntry);
+
+            if (_sourceEntry == null || _targetEntry == null)
             {
                 if (!ReferenceConnection.IsDeleted)
                 {
@@ -83,22 +87,16 @@ namespace Rendering.UI
                 return;
             }
 
-            var sourceBounds = sourceEntry.Bounds;
-            var targetBounds = targetEntry.Bounds;
+            var sourceBounds = _sourceEntry.Bounds;
+            var targetBounds = _targetEntry.Bounds;
 
-            Vector2 sourceCenter = new(sourceBounds.X + sourceBounds.Width / 2, sourceBounds.Y + sourceBounds.Height / 2);
-            Vector2 targetCenter = new(targetBounds.X + targetBounds.Width / 2, targetBounds.Y + targetBounds.Height / 2);
+            Vector2 sourceCenter = _sourceEntry.Transform.Position;
+            Vector2 targetCenter = _targetEntry.Transform.Position;
 
             _source = CalculateConnectionPoint(sourceBounds, targetCenter);
             _target = CalculateConnectionPoint(targetBounds, sourceCenter);
 
             UpdateLineGeometry();
-            if (IsVisible)
-            {
-                RenderReady = true;
-                ChunkManager.RemoveObject(this);
-                ChunkManager.AddObject(this);
-            }
         }
 
         private Vector2 CalculateConnectionPoint(RectangleF bounds, Vector2 targetPoint)
@@ -140,7 +138,8 @@ namespace Rendering.UI
                     return;
                 }
 
-                var (vertices, indices) = ConnectionMeshHelper.GenerateConnectionMesh(
+                var (vertices, indices) = ConnectionMeshHelper.GenerateConnectionMesh
+                (
                     sourceCenter,
                     targetCenter,
                     ReferenceConnection.arrowType,

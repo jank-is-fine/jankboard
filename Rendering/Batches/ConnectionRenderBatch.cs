@@ -1,37 +1,46 @@
 using System.Drawing;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Managers;
 using Rendering.UI;
 using Silk.NET.OpenGL;
 
-/// <summary>
-/// <para>Specialized <see cref="RenderBatch"/> class for connection/arrow geometry</para>
-/// </summary>
-
 public class ConnectionRenderBatch
 {
-    private VertexArrayObject<float, uint> _batchVao = null!;
-    private BufferObject<float> _batchVbo = null!;
+    private VertexArrayObject _batchVao = null!;
+    private BufferObject<ColoredVertex> _batchVbo = null!;
     private BufferObject<uint> _batchEbo = null!;
-    private List<float> _vertexData = [];
+    private List<ColoredVertex> _vertexData = [];
     private List<uint> _indices = [];
     private Shader _batchShader;
     private GL _gl = ShaderManager.gl;
     private bool _isBatchInitialized = false;
 
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct ColoredVertex
+    {
+        public Vector3 Position;
+        public Vector4 Color;
+    }
+
     public ConnectionRenderBatch(Shader batchShader)
     {
         _batchShader = batchShader;
 
-        _batchVbo = new BufferObject<float>(_gl, [], BufferTargetARB.ArrayBuffer);
+        _batchVbo = new BufferObject<ColoredVertex>(_gl, [], BufferTargetARB.ArrayBuffer);
         _batchEbo = new BufferObject<uint>(_gl, [], BufferTargetARB.ElementArrayBuffer);
-        _batchVao = new VertexArrayObject<float, uint>(_gl, _batchVbo, _batchEbo);
+        _batchVao = new VertexArrayObject(_gl);
 
-        // Vertex layout for connections: position(3), color(4)
-        _batchVao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 7, 0);   // position (x, y, z)
-        _batchVao.VertexAttributePointer(1, 4, VertexAttribPointerType.Float, 7, 3);   // color (r, g, b, a)
+        _batchVao.Bind();
+        _batchVbo.Bind();
+        _batchEbo.Bind();
+
+        int stride = Marshal.SizeOf<ColoredVertex>();
+
+        _batchVao.SetVertexAttribute<ColoredVertex>(0, 3, VertexAttribPointerType.Float, stride, 0);
+        _batchVao.SetVertexAttribute<ColoredVertex>(1, 4, VertexAttribPointerType.Float, stride, Marshal.OffsetOf<ColoredVertex>(nameof(ColoredVertex.Color)).ToInt32());
+
         _batchVao.Unbind();
-
         _isBatchInitialized = true;
     }
 
@@ -45,7 +54,7 @@ public class ConnectionRenderBatch
             _indices.Clear();
         }
 
-        uint vertexOffset = 0;
+        uint vertexOffset = (uint)_vertexData.Count;
 
         foreach (var connection in targetConnections)
         {
@@ -67,8 +76,9 @@ public class ConnectionRenderBatch
         }
         else
         {
-            color = SelectionManager.IsObjectSelected(connection) ? Settings.ColorToVec4(Settings.HighlightColor)
-                                             : Settings.ColorToVec4(GetConnectionColor(arrowType));
+            color = SelectionManager.IsObjectSelected(connection)
+                ? Settings.ColorToVec4(Settings.HighlightColor)
+                : Settings.ColorToVec4(GetConnectionColor(arrowType));
         }
 
         var vertices = connection.GetBatchVertices();
@@ -76,20 +86,18 @@ public class ConnectionRenderBatch
 
         if (vertices == null || indices == null) return;
 
-        foreach (var vertex in vertices)
+        foreach (var pos in vertices)
         {
-            _vertexData.Add(vertex.X);
-            _vertexData.Add(vertex.Y);
-            _vertexData.Add(vertex.Z);
-            _vertexData.Add(color.X);
-            _vertexData.Add(color.Y);
-            _vertexData.Add(color.Z);
-            _vertexData.Add(color.W);
+            _vertexData.Add(new ColoredVertex
+            {
+                Position = pos,
+                Color = color
+            });
         }
 
-        foreach (var index in indices)
+        foreach (var idx in indices)
         {
-            _indices.Add(index + vertexOffset);
+            _indices.Add(idx + vertexOffset);
         }
 
         vertexOffset += (uint)vertices.Length;
@@ -107,11 +115,10 @@ public class ConnectionRenderBatch
 
     public void UpdateBuffers()
     {
-        if (_vertexData.Count > 0)
-        {
-            _batchVbo.BufferData(_vertexData.ToArray());
-            _batchEbo.BufferData(_indices.ToArray());
-        }
+        if (_vertexData.Count == 0) return;
+
+        _batchVbo.BufferData(CollectionsMarshal.AsSpan(_vertexData));
+        _batchEbo.BufferData(CollectionsMarshal.AsSpan(_indices));
     }
 
     public void ExecuteBatch()
@@ -131,13 +138,6 @@ public class ConnectionRenderBatch
         _batchVao.Bind();
         _gl.DrawElements(PrimitiveType.Triangles, (uint)_indices.Count, DrawElementsType.UnsignedInt, null);
         _batchVao.Unbind();
-
-        var error = _gl.GetError();
-        if (error != GLEnum.NoError)
-        {
-            //Logging every frame would create a huge log file - so no logging for now
-            Console.WriteLine($"OpenGL Error after batch drawing connections: {error}");
-        }
     }
 
     public void Dispose()

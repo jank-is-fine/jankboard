@@ -2,7 +2,6 @@ using System.Drawing;
 using System.Numerics;
 using Managers;
 using Rendering.UI;
-using Silk.NET.OpenGL;
 
 public class UIHuePicker : UIImage
 {
@@ -134,35 +133,10 @@ public class UIHuePicker : UIImage
     {
         if (!IsVisible) return;
 
-        _vao.Bind();
         Shader?.Use();
-
-        Shader?.SetUniform("uTexture0", 0);
-        if (IsScreenSpace)
-        {
-            Shader?.SetUniform("uView", Camera.GetStationalViewMatrix());
-            Shader?.SetUniform("uProjection", Camera.GetStationalProjectionMatrix());
-        }
-        else
-        {
-            Shader?.SetUniform("uView", Camera.GetViewMatrix());
-            Shader?.SetUniform("uProjection", Camera.GetProjectionMatrix());
-        }
-        Shader?.SetUniform("uModel", Transform.ViewMatrix);
-        Shader?.SetUniform("uColor", Settings.ColorToVec4(TextureColor));
-
         Shader?.SetUniform("uPickerColor", _hueColor.R / 255.0f, _hueColor.G / 255.0f, _hueColor.B / 255.0f, 1.0f);
 
-        Texture?.Bind();
-
-        Gl.DrawArrays(PrimitiveType.Triangles, 0, 6);
-
-        var error = Gl.GetError();
-        if (error != GLEnum.NoError)
-        {
-            //Logging every frame would be bad. No logging
-            Console.WriteLine($"OpenGL Error after drawing: {error}");
-        }
+        base.Render();
     }
 
     public override void Dispose()

@@ -14,7 +14,7 @@ public static class ShaderConfig
             {
                 "Default Shader",
                 (
-                    ResourceHelper.GetEmbeddedText("DefaultVertShaderInvertedY.vert"),
+                    ResourceHelper.GetEmbeddedText("DefaultVertShader.vert"),
                     ResourceHelper.GetEmbeddedText("DefaultTexture.frag")
                 )
             },
@@ -70,7 +70,7 @@ public static class ShaderConfig
             {
                 "Color-Picker Shader",
                 (
-                    ResourceHelper.GetEmbeddedText("DefaultVertShader.vert"),
+                    ResourceHelper.GetEmbeddedText("DefaultVertShaderInvertedY.vert"),
                     ResourceHelper.GetEmbeddedText("ColorPickerShader.frag")
                 )
             },

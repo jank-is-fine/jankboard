@@ -110,7 +110,6 @@ namespace Managers
                 }
                 selected.OnDragStart();
                 selected.RenderKey = GlobalRenderCounter;
-                ChunkManager.RemoveObject(selected);
             }
         }
 
@@ -141,7 +140,6 @@ namespace Managers
                 }
                 selected.OnDragEnd();
                 selected.RenderKey = GlobalRenderCounter;
-                ChunkManager.AddObject(selected);
             }
 
             SelectedElements.RemoveAll(x => x is ResizeHandle);

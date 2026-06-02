@@ -11,6 +11,7 @@ public class BufferObject<TDataType> : IDisposable
     private uint _handle;
     private BufferTargetARB _bufferType;
     private GL _gl;
+    private nuint _allocatedBytes;
 
     public unsafe BufferObject(GL gl, Span<TDataType> data, BufferTargetARB bufferType)
     {
@@ -21,17 +22,53 @@ public class BufferObject<TDataType> : IDisposable
         Bind();
         fixed (void* d = data)
         {
-            _gl.BufferData(bufferType, (nuint)(data.Length * sizeof(TDataType)), d, BufferUsageARB.StaticDraw);
+            _allocatedBytes = (nuint)(data.Length * sizeof(TDataType));
+
+            _gl.BufferData(
+                bufferType,
+                _allocatedBytes,
+                d,
+                BufferUsageARB.DynamicDraw);
         }
     }
 
 
     public unsafe void BufferData(Span<TDataType> data)
     {
+        var requiredBytes =
+     (nuint)(data.Length * sizeof(TDataType));
+
         Bind();
-        fixed (void* d = data)
+
+        if (requiredBytes > _allocatedBytes)
         {
-            _gl.BufferData(_bufferType, (nuint)(data.Length * sizeof(TDataType)), d, BufferUsageARB.DynamicDraw);
+            _allocatedBytes = requiredBytes;
+
+            fixed (void* d = data)
+            {
+                _gl.BufferData(
+                    _bufferType,
+                    _allocatedBytes,
+                    d,
+                    BufferUsageARB.DynamicDraw);
+            }
+        }
+        else
+        {
+            fixed (void* d = data)
+            {
+                _gl.BufferSubData(
+                    _bufferType,
+                    0,
+                    requiredBytes,
+                    d);
+            }
+        }
+
+        var err = _gl.GetError();
+        if (err != GLEnum.NoError)
+        {
+            Console.WriteLine(err);
         }
     }
 

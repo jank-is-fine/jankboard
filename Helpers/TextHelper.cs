@@ -26,7 +26,8 @@ public static class TextHelper
 
         foreach (var line in parsedText.lines)
         {
-            var lineBounds = GetStringLineRenderBounds(line.lineSegments, scale);
+            var effectiveScale = line.SizeOverride.HasValue ? (float)line.SizeOverride : scale;
+            var lineBounds = GetStringLineRenderBounds(line.lineSegments, effectiveScale);
             float lineWidth = lineBounds.Width;
 
             if (lineWidth > maxWidth)
@@ -38,7 +39,7 @@ public static class TextHelper
             minY = Math.Min(minY, lineTop);
             maxY = Math.Max(maxY, lineBottom);
 
-            currentY += font.Metrics.LineHeight * scale;
+            currentY += font.Metrics.LineHeight * effectiveScale;
         }
 
         if (minY == float.MaxValue)
@@ -50,8 +51,11 @@ public static class TextHelper
     }
 
 
-    public static RectangleF GetStringLineRenderBounds(List<TextSegment> lineSegments,
-        float scale = 1f)
+    public static RectangleF GetStringLineRenderBounds
+    (
+        List<TextSegment> lineSegments,
+        float scale = 1f
+    )
     {
         if (lineSegments == null || lineSegments.Count == 0)
             return new RectangleF(0, 0, 0, 0);
@@ -258,16 +262,36 @@ public static class TextHelper
         Vector2 buttonCorner = targetPos - (SourceScale * 0.5f);
         Vector2 sizeDifference = SourceScale - new Vector2(textBox.Width, textBox.Height);
 
-        return buttonCorner + sizeDifference * relativePos;
+        return buttonCorner + (sizeDifference * relativePos);
     }
 
     public static Vector2 CalculateTextPosition(string targetString,
         Vector2 targetPos,
         Vector2 SourceScale,
         TextAnchorPoint textAnchorPoint,
-        bool isScreenSpace = false)
+        bool isScreenSpace = false,
+        FontType fontType = FontType.REGULAR
+    )
     {
-        var parsedText = TextFormatParser.ParseText(targetString);
+        ParsedText parsedText = new();
+        var lines = targetString.Split('\n').ToList();
+
+        foreach (var line in lines)
+        {
+            var linesegment = new TextSegment
+            {
+                FontType = fontType,
+                Text = line
+            };
+
+            var linestyle = new LineTextStyle()
+            {
+                lineSegments = [linesegment]
+            };
+
+            parsedText.lines.Add(linestyle);
+        }
+
         return CalculateTextPosition(parsedText, targetPos, SourceScale, textAnchorPoint, isScreenSpace);
     }
 

@@ -12,6 +12,8 @@ public static class AudioHandler
     private static AudioPlaybackDevice? playbackDevice;
     public static readonly AudioFormat format = AudioFormat.DvdHq;
 
+    public static Action? PlayBackDeviceChanged = null;
+
     public static void Init()
     {
         engine.UpdateAudioDevicesInfo();
@@ -22,6 +24,43 @@ public static class AudioHandler
         GetAllSounds();
 
         UpdateSoundSettings();
+    }
+
+    public static DeviceInfo[] GetAllPlaybackDevices()
+    {
+        engine.UpdateAudioDevicesInfo();
+        return engine.PlaybackDevices;
+    }
+
+    public static DeviceInfo? GetCurrentPlaybackDevice()
+    {
+        return playbackDevice?.Info;
+    }
+
+    public static void ChangeAudioDevice(DeviceInfo targetDevice)
+    {
+        engine.UpdateAudioDevicesInfo();
+
+        var devices = engine.PlaybackDevices;
+
+        if (devices == null || devices.Length == 0)
+        {
+            return;
+        }
+
+        if (playbackDevice == null)
+        {
+            return;
+        }
+        try
+        {
+            playbackDevice = engine.SwitchDevice(playbackDevice, targetDevice);
+            PlayBackDeviceChanged?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Logger.Log("AudioHandler", $"Device switch failed: {ex}", LogLevel.ERROR);
+        }
     }
 
     public static void GetAllSounds()
@@ -84,7 +123,7 @@ public static class AudioHandler
 
             return player;
         }
-        
+
         Logger.Log("AudioHandler", $"Sound: {soundName} not found!", LogLevel.WARNING);
         return null;
     }

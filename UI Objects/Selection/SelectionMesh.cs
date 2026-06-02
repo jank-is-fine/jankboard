@@ -1,5 +1,5 @@
-using System.Drawing;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Managers;
 using Silk.NET.OpenGL;
 
@@ -7,44 +7,51 @@ namespace Rendering.UI
 {
     public class SelectionMesh : UIObject
     {
-        private List<float> _vertices = [];
-        private List<uint> _indices = [];
-        private BufferObject<float> _vbo;
-        private BufferObject<uint> _ebo;
-        private VertexArrayObject<float, uint> _vao;
-        private bool _needsUpdate = false;
-        private GL gl = ShaderManager.gl;
-        private bool IsInScreenSpace = false;
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        private struct SelectionVertex
+        {
+            public Vector3 Position;
+            public Vector2 TexCoord;
+        }
 
-        public override void OnDrag() { }
+        private List<SelectionVertex> _vertices = [];
+        private List<uint> _indices = [];
+        private BufferObject<SelectionVertex> _vbo;
+        private BufferObject<uint> _ebo;
+        private VertexArrayObject _vao;
+        private bool _needsUpdate = false;
 
         public SelectionMesh(bool screenSpace = false)
         {
             Shader = ShaderManager.GetShaderByName("Selection Shader");
 
-            IsInScreenSpace = screenSpace;
-
-            _vbo = new BufferObject<float>(ShaderManager.gl, [], BufferTargetARB.ArrayBuffer);
+            _vbo = new BufferObject<SelectionVertex>(ShaderManager.gl, [], BufferTargetARB.ArrayBuffer);
             _ebo = new BufferObject<uint>(ShaderManager.gl, [], BufferTargetARB.ElementArrayBuffer);
-            _vao = new VertexArrayObject<float, uint>(ShaderManager.gl, _vbo, _ebo);
+            _vao = new VertexArrayObject(ShaderManager.gl);
 
-            _vao.VertexAttributePointer(0, 2, VertexAttribPointerType.Float, 4, 0);
-            _vao.VertexAttributePointer(1, 2, VertexAttribPointerType.Float, 4, 2);
+            _vao.Bind();
+            _vbo.Bind();
+            _ebo.Bind();
+
+            int stride = Marshal.SizeOf<SelectionVertex>();
+            _vao.SetVertexAttribute<SelectionVertex>(0, 3, VertexAttribPointerType.Float, stride, 0);
+            _vao.SetVertexAttribute<SelectionVertex>(1, 2, VertexAttribPointerType.Float, stride,
+                Marshal.OffsetOf<SelectionVertex>(nameof(SelectionVertex.TexCoord)).ToInt32());
+
+            _vao.Unbind();
         }
-
 
         public void UpdateSelection(string[] lines, int selectionStart, int selectionEnd,
                                    Vector2 localTextStartPos, float lineHeight)
         {
             _vertices.Clear();
             _indices.Clear();
-
             GenerateSelectionMesh(lines, selectionStart, selectionEnd, localTextStartPos, lineHeight);
             _needsUpdate = true;
         }
 
         private void GenerateSelectionMesh(string[] lines, int selectionStart, int selectionEnd,
-                                          Vector2 localTextStartPos, float lineHeight)
+                                           Vector2 localTextStartPos, float lineHeight)
         {
             var lineBounds = CalculatePerLineBounds(lines, selectionStart, selectionEnd);
 
@@ -52,65 +59,23 @@ namespace Rendering.UI
             {
                 float yTop = localTextStartPos.Y - (bound.LineIndex * lineHeight);
                 float yBottom = yTop - lineHeight;
-
                 float xLeft = localTextStartPos.X + bound.StartX;
                 float xRight = localTextStartPos.X + bound.EndX;
 
-                int baseIndex = _vertices.Count / 4;
+                int baseIndex = _vertices.Count;
 
-                _vertices.AddRange([
-                xLeft, yTop, 0, 0,
-                xRight, yTop, 1, 0,
-                xLeft, yBottom, 0, 1,
-                xRight, yBottom, 1, 1
-            ]);
+                _vertices.Add(new SelectionVertex { Position = new Vector3(xLeft, yTop, 0), TexCoord = new Vector2(0, 0) });
+                _vertices.Add(new SelectionVertex { Position = new Vector3(xRight, yTop, 0), TexCoord = new Vector2(1, 0) });
+                _vertices.Add(new SelectionVertex { Position = new Vector3(xLeft, yBottom, 0), TexCoord = new Vector2(0, 1) });
+                _vertices.Add(new SelectionVertex { Position = new Vector3(xRight, yBottom, 0), TexCoord = new Vector2(1, 1) });
 
-                _indices.AddRange([
-                (uint)baseIndex, (uint)baseIndex + 1, (uint)baseIndex + 2,
-                (uint)baseIndex + 1, (uint)baseIndex + 3, (uint)baseIndex + 2
-            ]);
+                _indices.Add((uint)baseIndex);
+                _indices.Add((uint)baseIndex + 1);
+                _indices.Add((uint)baseIndex + 2);
+                _indices.Add((uint)baseIndex + 1);
+                _indices.Add((uint)baseIndex + 3);
+                _indices.Add((uint)baseIndex + 2);
             }
-        }
-
-        public unsafe override void Render()
-        {
-            if (_vertices.Count == 0) return;
-
-            if (_needsUpdate)
-            {
-                _vbo.Bind();
-                _vbo.BufferData([.. _vertices]);
-                _vbo.Unbind();
-
-                _ebo.Bind();
-                _ebo.BufferData([.. _indices]);
-                _ebo.Unbind();
-
-                _needsUpdate = false;
-            }
-
-            _vao.Bind();
-            Shader?.Use();
-
-            Shader?.SetUniform("uModel", Transform.ViewMatrix);
-
-            if (!IsInScreenSpace)
-            {
-                Shader?.SetUniform("uView", Camera.GetViewMatrix());
-                Shader?.SetUniform("uProjection", Camera.GetProjectionMatrix());
-            }
-            else
-            {
-                Shader?.SetUniform("uView", Camera.GetStationalViewMatrix());
-                Shader?.SetUniform("uProjection", Camera.GetStationalProjectionMatrix());
-            }
-
-            Shader?.SetUniform("uColor", Settings.ColorToVec4(Settings.SelectionMeshColor));
-
-            gl.DrawElements(PrimitiveType.Triangles, (uint)_indices.Count,
-                           DrawElementsType.UnsignedInt, null);
-
-            _vao.Unbind();
         }
 
         private List<LineBound> CalculatePerLineBounds(string[] lines, int selectionStart, int selectionEnd)
@@ -133,15 +98,43 @@ namespace Rendering.UI
                     {
                         float startX = TextHelper.GetStringLineRenderBounds(line[..lineSelectionStart], FontType.REGULAR, Settings.TextSize).Width;
                         float endX = TextHelper.GetStringLineRenderBounds(line[..lineSelectionEnd], FontType.REGULAR, Settings.TextSize).Width;
-
                         bounds.Add(new LineBound(lineIndex, startX, endX));
                     }
                 }
-
                 charsProcessed += line.Length + 1;
             }
-
             return bounds;
+        }
+
+        public unsafe override void Render()
+        {
+            if (_vertices.Count == 0) return;
+
+            if (_needsUpdate)
+            {
+                _vbo.BufferData(CollectionsMarshal.AsSpan(_vertices));
+                _ebo.BufferData(CollectionsMarshal.AsSpan(_indices));
+                _needsUpdate = false;
+            }
+
+            _vao.Bind();
+            Shader?.Use();
+
+            Shader?.SetUniform("uModel", Transform.ViewMatrix);
+            if (!IsScreenSpace)
+            {
+                Shader?.SetUniform("uView", Camera.GetViewMatrix());
+                Shader?.SetUniform("uProjection", Camera.GetProjectionMatrix());
+            }
+            else
+            {
+                Shader?.SetUniform("uView", Camera.GetStationalViewMatrix());
+                Shader?.SetUniform("uProjection", Camera.GetStationalProjectionMatrix());
+            }
+            Shader?.SetUniform("uColor", Settings.ColorToVec4(Settings.SelectionMeshColor));
+
+            ShaderManager.gl.DrawElements(PrimitiveType.Triangles, (uint)_indices.Count, DrawElementsType.UnsignedInt, null);
+            _vao.Unbind();
         }
 
         public override void Dispose()

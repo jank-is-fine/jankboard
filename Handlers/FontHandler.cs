@@ -140,7 +140,7 @@ public class FontHandler : IDisposable
             textureData = memoryStream.ToArray();
         }
 
-        var texture = new Texture(textureData);
+        var texture = new Texture(textureData, DisableMipMaps: true);
 
         return new MsdfFont(jsonContent, texture, fontName);
     }

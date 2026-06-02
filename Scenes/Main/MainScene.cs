@@ -1,4 +1,3 @@
-using System.Drawing;
 using Managers;
 using Rendering.UI;
 using Silk.NET.Input;
@@ -9,18 +8,8 @@ public partial class MainScene : Scene
 
     public Toolbar toolbar = new(WindowManager.window);
 
-    //Behold the fucked list aggregation
-    public override List<UIObject?> Children =>
-    [
-        .. toolbar.uIButtons,
-        .. ContextMenu.Instance.Options,
-        .. ChunkManager.GetObjectsInVisibleArea(Camera.GetVisibleWorldArea())
-            .Where(obj => obj.IsVisible && !obj.IsDisposed).ToList(),
-        BreadcrumbNav,
-        EntryManager.inputField,
-        GroupManager.inputField
-    ];
-
+    private List<UIObject?> _temp = new(2048);
+    public override List<UIObject?> Children => _temp;
     private RenderBatch EntryRenderBatch;
     private RenderBatch GroupRenderBatch;
     private RenderBatch ImageUIRenderBatch;
@@ -43,73 +32,104 @@ public partial class MainScene : Scene
         GroupRenderBatch.NineSliceBorder = new(47, 47);
     }
 
+    private void Update(double deltaTime)
+    {
+        _temp.Clear();
+        _temp.AddRange(toolbar.uIButtons);
+        _temp.AddRange(ContextMenu.Instance.Options);
+        _temp.Add(BreadcrumbNav);
+        _temp.Add(EntryManager.inputField);
+        _temp.Add(GroupManager.inputField);
+    }
+
+    private List<UIObject> _tempVisibleUnsortedObjects = new(2048);
+    private List<UIObject> _tempVisibleEntries = new(2048);
+    private List<UIObject> _tempVisibleGroups = new(2048);
+    private List<UIObject> _tempVisibleImages = new(2048);
+    private List<IGrouping<Texture?, UIObject>> _tempSplitImages = new(2048);
+    private List<UIObject> _tempSelectedObjects = new(2048);
+    private List<ConnectionUI> _tempVisibleConnections = new(2048);
+
+    private List<UIObject> _tempChildren = new(2048);
+
     public override void Render()
     {
         TextRenderer.Clear();
         OutlineRender.Clear();
 
-        RectangleF visibleArea = Camera.GetVisibleWorldArea();
+        _tempVisibleUnsortedObjects.Clear();
+        _tempVisibleEntries.Clear();
+        _tempVisibleGroups.Clear();
+        _tempVisibleImages.Clear();
+        _tempSplitImages.Clear();
+        _tempSelectedObjects.Clear();
+        _tempVisibleConnections.Clear();
+        _tempChildren.Clear();
 
-        var visibleUnsortedObjects = ChunkManager.GetObjectsInVisibleArea(visibleArea)
-            .Where(obj => obj.IsVisible && !obj.IsDisposed);
+        _tempVisibleUnsortedObjects.AddRange(UIobjectHandler.GetVisibleObjects());
 
-        var VisibleEntries = visibleUnsortedObjects.Where(x => x is EntryUI).OrderBy(x => x.RenderKey);
-        var VisibleGroups = visibleUnsortedObjects.Where(x => x is GroupUI).OrderBy(x => x.RenderKey);
-        var VisibleImages = visibleUnsortedObjects.Where(x => x is ImageUI).OrderBy(x => x.RenderKey).ToList();
+        _tempVisibleEntries.AddRange(_tempVisibleUnsortedObjects.Where(x => x is EntryUI).OrderBy(x => x.RenderKey));
+        _tempVisibleGroups.AddRange(_tempVisibleUnsortedObjects.Where(x => x is GroupUI).OrderBy(x => x.RenderKey));
+        _tempVisibleImages.AddRange(_tempVisibleUnsortedObjects.Where(x => x is ImageUI).OrderBy(x => x.RenderKey));
 
-        VisibleImages.AddRange([.. VisibleGroups.SelectMany(x => x.ChildObjects), .. VisibleImages.SelectMany(x => x.ChildObjects)]);
+        _tempChildren.AddRange(_tempVisibleUnsortedObjects.Where(x => x is not ConnectionUI).SelectMany(x => x.ChildObjects));
+        _tempVisibleImages.AddRange(_tempChildren);
 
-        List<ConnectionUI> VisibleConnections = [.. visibleUnsortedObjects.Where(x => x is ConnectionUI).Cast<ConnectionUI>()];
+        _tempVisibleConnections.AddRange(_tempVisibleUnsortedObjects.Where(x => x is ConnectionUI).Cast<ConnectionUI>());
 
-        var selectedObjects = SelectionManager.GetSelectedTypeOfObject<UIObject>().Where(x => x.IsDraggable);
+        _tempSelectedObjects.AddRange
+        (
+            SelectionManager.GetSelectedTypeOfObject<UIObject>().Where
+            (
+                x => x.IsDraggable &&
+                x.IntersectsWithRect(Camera.GetVisibleWorldArea()) &&
+                x is not ResizeHandle
+            )
+        );
 
-        VisibleImages.AddRange(selectedObjects.Where(x => x is ImageUI).OrderBy(x => x.RenderKey));
-
-        EntryRenderBatch.AddObjectsToBatch([.. VisibleEntries.Concat(selectedObjects.Where(x => x is EntryUI).OrderBy(x => x.RenderKey))]);
-        GroupRenderBatch.AddObjectsToBatch([.. VisibleGroups.Concat(selectedObjects.Where(x => x is GroupUI).OrderBy(x => x.RenderKey))]);
-        ConnectionRenderBatch.AddConnectionsToBatch(VisibleConnections);
-
-        foreach (ConnectionUI obj in VisibleConnections)
-        {
-            obj.Render();
-        }
+        EntryRenderBatch.AddObjectsToBatch(_tempVisibleEntries.Where(x => x is EntryUI).OrderBy(x => x.RenderKey).Distinct());
+        GroupRenderBatch.AddObjectsToBatch(_tempVisibleGroups.Where(x => x is GroupUI).OrderBy(x => x.RenderKey).Distinct());
 
         GroupRenderBatch.ExecuteBatch();
 
-        var SplitImages = VisibleImages.GroupBy(x => x.Texture).ToList();
-        foreach (var splitImage in SplitImages)
+
+        _tempSplitImages.AddRange(_tempVisibleImages.GroupBy(x => x.Texture));
+        foreach (var splitImage in _tempSplitImages)
         {
-            ImageUIRenderBatch.AddObjectsToBatch([.. splitImage]);
+            ImageUIRenderBatch.AddObjectsToBatch(splitImage.Distinct());
             ImageUIRenderBatch.texture = splitImage.Key;
             ImageUIRenderBatch.ExecuteBatch();
         }
 
+        ConnectionRenderBatch.AddConnectionsToBatch(_tempVisibleConnections);
         ConnectionRenderBatch.ExecuteBatch();
+
         EntryRenderBatch.ExecuteBatch();
 
-        OutlineRender.AddOutlineToObjects([.. selectedObjects.Where(x => x is not ResizeHandle && !x.IsScreenSpace)], 16f * Camera.Zoom, Settings.HighlightColor);
+        OutlineRender.AddOutlineToObjects(_tempSelectedObjects.Where(x => !x.IsScreenSpace), 16f * Camera.Zoom, Settings.HighlightColor);
         OutlineRender.Draw();
 
-        var hoeverObject = UIobjectHandler.CurrentHoeverTarget;
 
-        if (hoeverObject != null && hoeverObject.IsScreenSpace && hoeverObject is not ResizeHandle)
+        if (UIobjectHandler.CurrentHoeverTarget != null && UIobjectHandler.CurrentHoeverTarget is not ResizeHandle)
         {
-            DrawMainOverlayObjects();
+            if (UIobjectHandler.CurrentHoeverTarget.IsScreenSpace)
+            {
+                DrawMainOverlayObjects();
 
-            OutlineRender.Clear();
-            OutlineRender.AddOutlineToObject(hoeverObject, 4f, Settings.HoeverHighlightColor);
-            OutlineRender.Draw();
-            return;
+                OutlineRender.Clear();
+                OutlineRender.AddOutlineToObject(UIobjectHandler.CurrentHoeverTarget, 4f, Settings.HoeverHighlightColor);
+                OutlineRender.Draw();
+                return;
+            }
+            else
+            {
+                OutlineRender.Clear();
+                OutlineRender.AddOutlineToObject(UIobjectHandler.CurrentHoeverTarget, 9f * Camera.Zoom, Settings.HoeverHighlightColor);
+                OutlineRender.Draw();
 
-        }
-        else if (hoeverObject != null && hoeverObject is not ResizeHandle)
-        {
-            OutlineRender.Clear();
-            OutlineRender.AddOutlineToObject(hoeverObject, 9f * Camera.Zoom, Settings.HoeverHighlightColor);
-            OutlineRender.Draw();
-
-            DrawMainOverlayObjects();
-            return;
+                DrawMainOverlayObjects();
+                return;
+            }
         }
         DrawMainOverlayObjects();
     }
@@ -203,7 +223,7 @@ public partial class MainScene : Scene
         }
         EntryManager.LayerLoaded -= BreadcrumbNav.UpdateCrumbNavigation;
         WindowManager.window.FileDrop -= ImageManager.CreateNewImagesPerWindowDrop;
-
+        WindowManager.window.Update -= Update;
     }
 
     public override void SubActions()
@@ -233,5 +253,6 @@ public partial class MainScene : Scene
         BreadcrumbNav.UpdateCrumbNavigation(EntryManager.CurrentParentEntry);
 
         WindowManager.window.FileDrop += ImageManager.CreateNewImagesPerWindowDrop;
+        WindowManager.window.Update += Update;
     }
 }

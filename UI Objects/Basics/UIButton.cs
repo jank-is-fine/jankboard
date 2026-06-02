@@ -97,10 +97,9 @@ namespace Rendering.UI
 
             TextRenderer.RenderTextParsed(
                 ParsedText,
-                TextHelper.CalculateTextPosition(ButtonContent, Transform.Position, Transform.Scale, TextAnchorPoint, IsScreenSpace),
+                TextHelper.CalculateTextPosition(ParsedText, Transform.Position, Transform.Scale, TextAnchorPoint, IsScreenSpace),
                 Settings.ColorToVec4(TextColor),
-                Settings.TextSize,
-                PxRangeAdjustOnZoom: !IsScreenSpace
+                Settings.TextSize
             );
 
         }

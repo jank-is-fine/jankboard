@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Managers;
 using Rendering.UI;
 using Silk.NET.OpenGL;
@@ -9,128 +10,144 @@ using Silk.NET.OpenGL;
 
 public class RenderBatch
 {
-    private VertexArrayObject<float, uint> _batchVao = null!;
-    private BufferObject<float> _batchVbo = null!;
-    private BufferObject<uint> _batchEbo = null!;
-    private List<float> _vertexData = [];
-    private List<uint> _indices = [];
-    private Shader _batchShader;
     private GL _gl = ShaderManager.gl;
-    public Texture? texture { get; set; } = null;
-    private bool _isBatchInitialized = false;
+    private Shader _batchShader;
+    private Texture? _texture;
+    private Texture? _defaultTexture = TextureHandler.GetEmbeddedTextureByName("default.png");
+    private List<UIObject> _textRenderTargetObjects = [];
+
+    private static readonly Vector2[] QuadPositions =
+    [
+        new(0, 0),
+        new(1, 0),
+        new(1, 1),
+        new(0, 1)
+    ];
+    private static readonly Vector2[] QuadUVs =
+    [
+        new(0, 1),
+        new(1, 1),
+        new(1, 0),
+        new(0, 0)
+    ];
+    private static readonly uint[] QuadIndices = [0, 1, 2, 0, 2, 3];
+
+    private BufferObject<Vector2> _quadPosVBO = null!;
+    private BufferObject<Vector2> _quadUvVBO = null!;
+    private BufferObject<uint> _quadEBO = null!;
+    private BufferObject<UIObjectInstance> _instanceVBO = null!;
+    private VertexArrayObject _vao = null!;
+
+    private List<UIObjectInstance> _instances = [];
+
     public Vector2 NineSliceBorder { get; set; } = Vector2.Zero;
-    private List<UIObject> TextRenderTargetObjects = [];
-    private Texture? defaultTexture = TextureHandler.GetEmbeddedTextureByName("default.png");
-
-    public RenderBatch(Shader BatchShader, Texture? tex = null)
+    public Texture? texture
     {
-        texture = tex;
-        _batchShader = BatchShader;
-
-        _batchVbo = new BufferObject<float>(_gl, [], BufferTargetARB.ArrayBuffer);
-        _batchEbo = new BufferObject<uint>(_gl, [], BufferTargetARB.ElementArrayBuffer);
-        _batchVao = new VertexArrayObject<float, uint>(_gl, _batchVbo, _batchEbo);
-
-        // Vertex layout: position(3), texcoord(2), color(4), dimensions(2), border(2)
-        _batchVao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 13, 0);   // position
-        _batchVao.VertexAttributePointer(1, 2, VertexAttribPointerType.Float, 13, 3);   // texcoord
-        _batchVao.VertexAttributePointer(2, 4, VertexAttribPointerType.Float, 13, 5);   // color
-        _batchVao.VertexAttributePointer(3, 2, VertexAttribPointerType.Float, 13, 9);   // dimensions
-        _batchVao.VertexAttributePointer(4, 2, VertexAttribPointerType.Float, 13, 11);  // border
-        _batchVao.Unbind();
-
-        _isBatchInitialized = true;
+        get => _texture;
+        set => _texture = value;
     }
 
-
-    public void AddObjectsToBatch(List<UIObject> targetObjects, bool ClearPreviousBatch = true)
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    private struct UIObjectInstance
     {
-        if (!_isBatchInitialized) return;
+        public Vector2 Position;
+        public Vector2 Scale;
+        public Vector4 Color;
+        public Vector2 Border;
+    }
 
-        if (ClearPreviousBatch)
+    public RenderBatch(Shader batchShader, Texture? tex = null)
+    {
+        _batchShader = batchShader;
+        _texture = tex;
+
+        _quadPosVBO = new BufferObject<Vector2>(_gl, QuadPositions, BufferTargetARB.ArrayBuffer);
+        _quadUvVBO = new BufferObject<Vector2>(_gl, QuadUVs, BufferTargetARB.ArrayBuffer);
+        _quadEBO = new BufferObject<uint>(_gl, QuadIndices, BufferTargetARB.ElementArrayBuffer);
+        _instanceVBO = new BufferObject<UIObjectInstance>(_gl, [], BufferTargetARB.ArrayBuffer);
+
+        _vao = new VertexArrayObject(_gl);
+        _vao.Bind();
+
+        _quadPosVBO.Bind();
+        _vao.SetVertexAttribute<Vector2>(0, 2, VertexAttribPointerType.Float, 0, 0);
+
+        _quadUvVBO.Bind();
+        _vao.SetVertexAttribute<Vector2>(1, 2, VertexAttribPointerType.Float, 0, 0);
+
+        _instanceVBO.Bind();
+        int instanceStride = Marshal.SizeOf<UIObjectInstance>();
+
+        // Position (vec2)
+        _vao.SetVertexAttribute<UIObjectInstance>(2, 2, VertexAttribPointerType.Float, instanceStride, 0);
+        _vao.VertexAttribDivisor(2, 1);
+
+        // Scale (vec2)
+        _vao.SetVertexAttribute<UIObjectInstance>(3, 2, VertexAttribPointerType.Float, instanceStride,
+            Marshal.OffsetOf<UIObjectInstance>(nameof(UIObjectInstance.Scale)).ToInt32());
+        _vao.VertexAttribDivisor(3, 1);
+
+        // Color (vec4)
+        _vao.SetVertexAttribute<UIObjectInstance>(4, 4, VertexAttribPointerType.Float, instanceStride,
+            Marshal.OffsetOf<UIObjectInstance>(nameof(UIObjectInstance.Color)).ToInt32());
+        _vao.VertexAttribDivisor(4, 1);
+
+        // Border (vec2)
+        _vao.SetVertexAttribute<UIObjectInstance>(5, 2, VertexAttribPointerType.Float, instanceStride,
+            Marshal.OffsetOf<UIObjectInstance>(nameof(UIObjectInstance.Border)).ToInt32());
+        _vao.VertexAttribDivisor(5, 1);
+
+        _vao.Unbind();
+    }
+
+    public void AddObjectsToBatch(IEnumerable<UIObject> targetObjects, bool clearPreviousBatch = true)
+    {
+        if (clearPreviousBatch)
         {
-            _vertexData.Clear();
-            _indices.Clear();
-            TextRenderTargetObjects.Clear();
-            TextRenderTargetObjects.AddRange(targetObjects);
+            _instances.Clear();
+            _textRenderTargetObjects.Clear();
         }
-
-        uint vertexOffset = 0;
+        _textRenderTargetObjects.AddRange(targetObjects);
 
         foreach (var obj in targetObjects)
         {
-            if (obj == null || !obj.IsVisible)
-                continue;
-
-            AddObjectToBatch(obj, ref vertexOffset);
-            TextRenderTargetObjects.Add(obj);
+            if (obj == null || !obj.IsVisible) continue;
+            AddObjectToBatch(obj);
         }
     }
 
-    public void UpdateBuffers()
+    private void AddObjectToBatch(UIObject obj)
     {
-        if (_vertexData.Count > 0)
+        Vector2 pos = obj.Transform.Position;
+        Vector2 scale = obj.Transform.Scale;
+        Vector4 color = Settings.ColorToVec4(obj.TextureColor);
+
+        _instances.Add(new UIObjectInstance
         {
-            _batchVbo.BufferData(_vertexData.ToArray());
-            _batchVbo.Unbind();
-
-            _batchEbo.BufferData(_indices.ToArray());
-            _batchEbo.Unbind();
-        }
+            Position = pos,
+            Scale = scale,
+            Color = color,
+            Border = NineSliceBorder
+        });
     }
 
-    private void AddObjectToBatch(UIObject TargetObject, ref uint vertexOffset)
+    private void UpdateInstanceBuffer()
     {
-        Vector2 pos = TargetObject.Transform.Position;
-        Vector2 scale = TargetObject.Transform.Scale;
-        Vector2 border = NineSliceBorder;
-
-        Vector4 color = Settings.ColorToVec4(TargetObject.TextureColor);
-
-        // Calculate the quad vertices
-        float left = pos.X - scale.X / 2;
-        float right = pos.X + scale.X / 2;
-        float top = pos.Y + scale.Y / 2;
-        float bottom = pos.Y - scale.Y / 2;
-
-        // Create vertices for a simple quad
-        AddVertex(new Vector3(left, top, 0), new Vector2(0, 0), color, scale, border);
-        AddVertex(new Vector3(right, top, 0), new Vector2(1, 0), color, scale, border);
-        AddVertex(new Vector3(right, bottom, 0), new Vector2(1, 1), color, scale, border);
-        AddVertex(new Vector3(left, bottom, 0), new Vector2(0, 1), color, scale, border);
-
-        // Add indices - 2 triangles
-        _indices.Add(vertexOffset + 0);
-        _indices.Add(vertexOffset + 1);
-        _indices.Add(vertexOffset + 2);
-        _indices.Add(vertexOffset + 0);
-        _indices.Add(vertexOffset + 2);
-        _indices.Add(vertexOffset + 3);
-
-        vertexOffset += 4;
+        if (_instances.Count == 0) return;
+        _instanceVBO.BufferData(CollectionsMarshal.AsSpan(_instances));
     }
 
-    private void AddVertex(Vector3 position, Vector2 texCoord, Vector4 color, Vector2 dimensions, Vector2 border)
+    public void ExecuteBatch()
     {
-        _vertexData.Add(position.X);
-        _vertexData.Add(position.Y);
-        _vertexData.Add(position.Z);
-        _vertexData.Add(texCoord.X);
-        _vertexData.Add(texCoord.Y);
-        _vertexData.Add(color.X);
-        _vertexData.Add(color.Y);
-        _vertexData.Add(color.Z);
-        _vertexData.Add(color.W);
-        _vertexData.Add(dimensions.X);
-        _vertexData.Add(dimensions.Y);
-        _vertexData.Add(border.X);
-        _vertexData.Add(border.Y);
+        UpdateInstanceBuffer();
+        DrawBatch();
+        RenderText();
     }
 
     private void RenderText()
     {
         TextRenderer.Clear();
-        foreach (var obj in TextRenderTargetObjects)
+        foreach (var obj in _textRenderTargetObjects)
         {
             obj.RenderText();
         }
@@ -138,49 +155,31 @@ public class RenderBatch
         TextRenderer.Clear();
     }
 
-    public void ExecuteBatch()
-    {
-        UpdateBuffers();
-        DrawBatch();
-        RenderText();
-    }
-
     private unsafe void DrawBatch()
     {
-        if (!_isBatchInitialized || _vertexData.Count == 0) { return; }
+        if (_instances.Count == 0) return;
 
-        _batchShader?.Use();
+        _batchShader.Use();
 
-        _batchShader?.SetUniform("uTexture0", 0);
-        _batchShader?.SetUniform("uView", Camera.GetViewMatrix());
-        _batchShader?.SetUniform("uProjection", Camera.GetProjectionMatrix());
+        _batchShader.SetUniform("uProjection", Camera.GetProjectionMatrix());
+        _batchShader.SetUniform("uView", Camera.GetViewMatrix());
+        _batchShader.SetUniform("uTexture0", 0);
 
-        if (texture == null)
-        {
-            defaultTexture?.Bind();
-        }
-        else
-        {
-            texture?.Bind();
-        }
+        var tex = _texture ?? _defaultTexture;
+        tex?.Bind();
 
-
-        _batchVao?.Bind();
-        _gl?.DrawElements(PrimitiveType.Triangles, (uint)_indices.Count, DrawElementsType.UnsignedInt, null);
-        _batchVao?.Unbind();
-
-        var error = _gl?.GetError();
-        if (error != GLEnum.NoError)
-        {
-            //Logging every frame would create a huge log file - so no logging for now
-            Console.WriteLine($"OpenGL Error after batch drawing: {error}");
-        }
+        _vao.Bind();
+        _quadEBO.Bind();
+        _gl.DrawElementsInstanced(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, null, (uint)_instances.Count);
+        _vao.Unbind();
     }
 
     public void Dispose()
     {
-        _batchVao?.Dispose();
-        _batchVbo?.Dispose();
-        _batchEbo?.Dispose();
+        _quadPosVBO?.Dispose();
+        _quadUvVBO?.Dispose();
+        _quadEBO?.Dispose();
+        _instanceVBO?.Dispose();
+        _vao?.Dispose();
     }
 }

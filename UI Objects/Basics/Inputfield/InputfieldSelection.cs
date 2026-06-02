@@ -21,6 +21,7 @@ namespace Rendering.UI
         private const double CursorBlinkInterval = 0.5;
         private bool _isDraggingSelection = false;
         private int _dragStartPosition = 0;
+        private (int, int, string)? lastSelection = null;
 
         private void SetCursorFromWorldPosition(Vector2 worldPos)
         {
@@ -103,19 +104,24 @@ namespace Rendering.UI
             if (!HasSelection || SelectionStart == SelectionEnd)
                 return;
 
+            if (lastSelection == null || lastSelection != (SelectionStart, SelectionEnd, Content))
+            {
+                float lineHeight = TextRenderer.Font.Metrics.LineHeight * Settings.TextSize;
 
-            float lineHeight = TextRenderer.Font.Metrics.LineHeight * Settings.TextSize;
+                string[] lines = Content.Split('\n');
 
-            string[] lines = Content.Split('\n');
+                _selectionMesh.Transform.Position = Transform.Position;
 
-            _selectionMesh.Transform.Position = Transform.Position;
+                Vector2 localTextStart = new(
+                    -Transform.Scale.X / 2f,
+                    Transform.Scale.Y / 2f
+                );
 
-            Vector2 localTextStart = new(
-                -Transform.Scale.X / 2f,
-                Transform.Scale.Y / 2f
-            );
+                _selectionMesh.UpdateSelection(lines, SelectionStart, SelectionEnd, localTextStart, lineHeight);
 
-            _selectionMesh.UpdateSelection(lines, SelectionStart, SelectionEnd, localTextStart, lineHeight);
+                lastSelection = (SelectionStart, SelectionEnd, Content);
+            }
+
             _selectionMesh.Render();
         }
 

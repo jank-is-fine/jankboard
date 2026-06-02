@@ -19,15 +19,52 @@ using Silk.NET.Input;
 public static class UIobjectHandler
 {
     private static IMouse Mouse = InputDeviceHandler.primaryMouse!;
+    private static List<UIObject> uIObjects = [];
     private static List<UIObject> elements = [];
     private static List<UIObject> screenSpaceElements = [];
     private static List<UIObject> worldSpaceElements = [];
     public static UIObject? CurrentHoeverTarget { get; private set; } = null;
+    
+    private static List<UIObject> _tempVisibleObjects = new(1024);
+
 
     public static void Init()
     {
         Mouse.MouseMove += Hoever;
     }
+
+    public static void AddObject(UIObject obj)
+    {
+        uIObjects.Add(obj);
+    }
+
+    public static void RemoveObject(UIObject? obj)
+    {
+        if (obj == null) return;
+        uIObjects.Remove(obj);
+    }
+
+    public static void Clear()
+    {
+        foreach(var obj in uIObjects)
+        {
+            obj.Dispose();
+        }
+        uIObjects.Clear();
+    }
+
+    public static List<UIObject> GetVisibleObjects()
+    {
+        _tempVisibleObjects.Clear();
+        _tempVisibleObjects.AddRange(uIObjects.Where(x => x.IntersectsWithRect(Camera.GetVisibleWorldArea())).Where(obj => obj.IsVisible && !obj.IsDisposed));
+        return _tempVisibleObjects;
+    }
+
+    public static IEnumerable<UIObject> GetAllObjects()
+    {
+        return uIObjects;
+    }
+
 
     private static void Hoever(IMouse mouse, Vector2 vector)
     {
@@ -48,7 +85,8 @@ public static class UIobjectHandler
 
     public static void Dispose()
     {
-        Mouse.MouseMove -= Hoever;
+        if (Mouse != null)
+            Mouse.MouseMove -= Hoever;
     }
 
     public static UIObject? GetObjectUnderMouse(Vector2? targetPos = null)
@@ -61,13 +99,13 @@ public static class UIobjectHandler
         worldSpaceElements.Clear();
 
 
-        foreach (var o in RenderManager.CurrentScene.Children.Prepend(RenderManager.modal).Where(x => x != null && x.IsVisible))
+        foreach (var o in GetVisibleObjects().Concat(RenderManager.CurrentScene.Children.Prepend(RenderManager.modal).Where(x => x != null && x.IsVisible)))
         {
             if (o == null) { continue; }
             elements.Add(o);
             elements.AddRange(GetAllChildren(o));
         }
-        
+
         elements = [.. elements.Where(x => x.IsVisible && x.IsSelectable).OrderByDescending(x => x.RenderOrder)];
 
         screenSpaceElements = [.. elements.Where(x => x.IsScreenSpace).OrderByDescending(x => x.RenderOrder).Distinct()];

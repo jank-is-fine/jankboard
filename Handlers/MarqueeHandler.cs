@@ -48,7 +48,7 @@ public static class MarqueeHandler
 
         RectangleF marqueeRect = new(left, top, right - left, bottom - top);
 
-        var visibleObjects = ChunkManager.GetObjectsInVisibleArea(Camera.GetVisibleWorldArea())
+        var visibleObjects = UIobjectHandler.GetVisibleObjects()
             .Where(obj => obj.IsVisible && obj.IsSelectable)
             .Where(obj => obj.IntersectsWithRect(marqueeRect))
             .ToList();

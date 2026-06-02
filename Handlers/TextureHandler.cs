@@ -26,7 +26,7 @@ public static class TextureHandler
                     continue;
                 }
 
-                Texture createdTex = new(texBytes);
+                Texture createdTex = new(texBytes, DisableMipMaps: true);
 
                 string key = resourceName;
 

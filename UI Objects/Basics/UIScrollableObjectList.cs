@@ -6,10 +6,8 @@ using Silk.NET.Input;
 public class UIScrollableObjectList : UIImage
 {
     public float ItemPadding { get; set; } = 2f;
-    public float ScrollOffset { get; private set; } = 0f;
-    public float MaxScrollOffset { get; private set; } = 0f;
     private bool IsHovering = false;
-    private float _contentHeight = 0f;
+    int CurrentIndex = 0;
 
     public UIScrollableObjectList(float itemPadding = 2f, bool nineslice = true)
     : base(texture: null, screenSpace: true, nineSlice: nineslice)
@@ -41,9 +39,7 @@ public class UIScrollableObjectList : UIImage
             item.Dispose();
         }
         ChildObjects.Clear();
-        ScrollOffset = 0f;
-        MaxScrollOffset = 0f;
-        _contentHeight = 0f;
+        CurrentIndex = 0;
     }
 
     public void AddItem(UIObject target, bool immediateRecalcLayout = false)
@@ -72,43 +68,46 @@ public class UIScrollableObjectList : UIImage
     public void RecalcLayout()
     {
         if (ChildObjects.Count == 0) return;
-        var bounds = Bounds;
 
-        _contentHeight = 0f;
-        foreach (var item in ChildObjects)
+        ChildObjects.ForEach
+        (
+            x => x.Transform.Scale = new
+            (
+                Transform.Scale.X - ItemPadding,
+                x.Transform.Scale.Y
+            )
+        );
+        
+
+        PositionObjects();
+    }
+
+    private void PositionObjects()
+    {
+        if (ChildObjects.Count <= 0) { return; }
+
+        CurrentIndex = int.Clamp(CurrentIndex, 0, ChildObjects.Count - 1);
+
+        ChildObjects.ForEach(x => x.IsVisible = false);
+
+        //start with padding/2
+        float CurrentY = Transform.Position.Y - (Transform.Scale.Y / 2f) + (ItemPadding / 2f);
+
+        for (int i = CurrentIndex; i < ChildObjects.Count; i++)
         {
-            _contentHeight += item.Transform.Scale.Y + ItemPadding;
-        }
-        _contentHeight += ItemPadding;
+            var obj = ChildObjects[i];
+            if (obj == null) { continue; }
 
-        MaxScrollOffset = Math.Max(0f, _contentHeight - Transform.Scale.Y);
+            obj.Transform.Position = new(Transform.Position.X, CurrentY + (obj.Transform.Scale.Y / 2f));
 
-        ScrollOffset = Math.Clamp(ScrollOffset, 0f, MaxScrollOffset);
-
-        float currentY = bounds.Top - ScrollOffset + ItemPadding;
-
-        foreach (var item in ChildObjects)
-        {
-            if (item is UIButton uIButton)
+            if (!IsItemVisible(obj))
             {
-                uIButton.SetScale(new Vector2(
-                    Transform.Scale.X - ItemPadding,
-                    item.Transform.Scale.Y
-                ));
-                continue;
+                break;
             }
 
-            item.Transform.Scale = new Vector2(
-                Transform.Scale.X - ItemPadding,
-                item.Transform.Scale.Y
-            );
-        }
+            obj.IsVisible = true;
 
-        LayoutHelper.Vertical(ChildObjects, new(bounds.Left + ItemPadding / 2, currentY), ItemPadding);
-
-        foreach (var item in ChildObjects)
-        {
-            item.IsVisible = IsItemVisible(item);
+            CurrentY += obj.Transform.Scale.Y + ItemPadding;
         }
 
         foreach (var item in ChildObjects.Where(x => x is SaveFileButton).Cast<SaveFileButton>())
@@ -130,11 +129,10 @@ public class UIScrollableObjectList : UIImage
 
     private void OnScroll(IMouse mouse, ScrollWheel wheel)
     {
-        if (!IsHovering || MaxScrollOffset <= 0f) return;
+        if (!IsHovering || ChildObjects.Count <= 0) return;
+        CurrentIndex += float.IsPositive(wheel.Y) ? -1 : 1;
 
-        float scrollDelta = -wheel.Y * 12f;
-        ScrollOffset = Math.Clamp(ScrollOffset + scrollDelta, 0f, MaxScrollOffset);
-        RecalcLayout();
+        PositionObjects();
     }
 
     private void OnMouseMove(IMouse mouse, Vector2 vector)
@@ -152,12 +150,8 @@ public class UIScrollableObjectList : UIImage
     public override void Render()
     {
         base.Render();
-        /*
-        foreach(var item in ChildObjects)
-        {
-            item.Render();
-        }
-        */
+
+
         //RenderScrollBar();
     }
 

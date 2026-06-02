@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Managers;
 using Silk.NET.OpenGL;
 
@@ -6,14 +7,38 @@ namespace Rendering.UI
 {
     public class UIImage : UIObject
     {
-        public VertexArrayObject<float, uint> _vao;
+        private static BufferObject<RenderManager.ScreenVertex>? _sharedVbo;
+        private static BufferObject<uint>? _sharedEbo;
+        public VertexArrayObject _vao;
         private readonly GL _gl;
-        protected GL Gl => _gl;
         public bool _nineSlice { get; private set; }
         public Vector2 _nineSliceBorder { get; private set; } = new(32, 16);
         public Action? DragStartAction;
         public Action? DragAction;
         public Action? DragEndAction;
+
+        private static readonly RenderManager.ScreenVertex[] _quadVertices =
+        [
+            new() { Position = new Vector3(-0.5f, -0.5f, 0), UV = new Vector2(0, 0) },
+            new() { Position = new Vector3( 0.5f, -0.5f, 0), UV = new Vector2(1, 0) },
+            new() { Position = new Vector3( 0.5f,  0.5f, 0), UV = new Vector2(1, 1) },
+            new() { Position = new Vector3(-0.5f,  0.5f, 0), UV = new Vector2(0, 1) }
+        ];
+
+        private static readonly uint[] _quadIndices =
+        [
+            0, 1, 2,
+            0, 2, 3
+        ];
+
+        private static void EnsureSharedBuffers(GL gl)
+        {
+            if (_sharedVbo == null)
+            {
+                _sharedVbo = new BufferObject<RenderManager.ScreenVertex>(gl, _quadVertices, BufferTargetARB.ArrayBuffer);
+                _sharedEbo = new BufferObject<uint>(gl, _quadIndices, BufferTargetARB.ElementArrayBuffer);
+            }
+        }
 
         public UIImage(Texture? texture = null, bool screenSpace = false, bool nineSlice = false, Vector2? NineSliceBorder = null)
         {
@@ -43,13 +68,24 @@ namespace Rendering.UI
                 Texture = texture;
             }
 
-            _vao = new VertexArrayObject<float, uint>(_gl, ShaderManager.Vbo, ShaderManager.Ebo);
-            _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 5, 0);
-            _vao.VertexAttributePointer(1, 2, VertexAttribPointerType.Float, 5, 3);
+            EnsureSharedBuffers(_gl);
+
+            _vao = new VertexArrayObject(_gl);
+            _vao.Bind();
+            _sharedVbo!.Bind();
+            _sharedEbo!.Bind();
+
+            int stride = Marshal.SizeOf<RenderManager.ScreenVertex>();
+            _vao.SetVertexAttribute<RenderManager.ScreenVertex>(0, 3, VertexAttribPointerType.Float, stride, 0);
+            _vao.SetVertexAttribute<RenderManager.ScreenVertex>(1, 2, VertexAttribPointerType.Float, stride,
+                Marshal.OffsetOf<RenderManager.ScreenVertex>(nameof(RenderManager.ScreenVertex.UV)).ToInt32());
+
+            _vao.Unbind();
+
             IsScreenSpace = screenSpace;
         }
 
-        public override void Render()
+        public unsafe override void Render()
         {
             if (!IsVisible) return;
 
@@ -78,9 +114,8 @@ namespace Rendering.UI
 
             Texture?.Bind();
 
-            _gl.DrawArrays(PrimitiveType.Triangles, 0, 6);
+            _gl.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, null);
 
-            // Check for OpenGL errors
             var error = _gl.GetError();
             if (error != GLEnum.NoError)
             {

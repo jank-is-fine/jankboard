@@ -1,6 +1,5 @@
 using Managers;
 using Newtonsoft.Json;
-using Rendering.UI;
 
 public class SaveManager
 {
@@ -70,14 +69,13 @@ public class SaveManager
     {
         if (CurrentSave != null)
         {
-            var AllElementsInCurrentLayer = ChunkManager.GetAllObjects();
+            var AllElementsInCurrentLayer = UIobjectHandler.GetAllObjects();
             if (AllElementsInCurrentLayer != null && AllElementsInCurrentLayer.Count() > 0)
             {
-                List<UIObject> SortedElementsinLayer = [.. AllElementsInCurrentLayer
-                .Where(x => !x.IsScreenSpace).OrderBy(x => x.RenderKey)];
-                for (int i = 0; i < SortedElementsinLayer.Count; i++)
+                int i = 0;
+                foreach (var obj in AllElementsInCurrentLayer.Where(x => !x.IsScreenSpace).OrderBy(x => x.RenderKey))
                 {
-                    SortedElementsinLayer[i].RenderKey = i;
+                    obj.RenderKey = i++;
                 }
             }
 
@@ -85,6 +83,16 @@ public class SaveManager
             CurrentSave.Connections = [.. ConnectionManager.GetAllConnections];
             CurrentSave.Groups = GroupManager.GetAllGroups;
             CurrentSave.Images = ImageManager.GetAllImages;
+
+            if (File.Exists(CurrentSave.SavePath))
+            {
+                var fileName = Path.GetFileNameWithoutExtension(CurrentSave.SavePath);
+
+                if (CurrentSave.SaveName != fileName)
+                {
+                    CurrentSave.SaveName = fileName;
+                }
+            }
         }
     }
 
@@ -235,6 +243,8 @@ public class SaveManager
         try
         {
             File.WriteAllText(filePath, content);
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
             return true;
         }
         catch (Exception e)

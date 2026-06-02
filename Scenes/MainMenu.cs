@@ -82,12 +82,11 @@ public class MainMenuScene : Scene
             SaveList.AddItem(newSaveButton);
         }
 
+        float MaxHeight = LayoutHelper.CalculateMaxSize([.. SaveList.ChildObjects]).Y;
+
+        SaveList.ChildObjects.ForEach(x => x.Transform.Scale = new(x.Transform.Scale.X, MaxHeight));
+
         SaveList.RecalcLayout();
-    }
-
-    public void DeleteSave(string path)
-    {
-
     }
 
     public override void RecalcLayout()
@@ -131,7 +130,7 @@ public class MainMenuScene : Scene
 
 
         SaveList.Transform.Scale = new(viewportSize.X - marginX * 2f,
-                                       viewportSize.Y - marginY - (viewportSize.Y * Settings.MARGIN_PERCENT));
+                                       viewportSize.Y - marginY - (viewportSize.Y * (Settings.MARGIN_PERCENT / 4f)));
 
         SaveList.Transform.Position = new(
             marginX + SaveList.Transform.Scale.X / 2f,
@@ -139,10 +138,8 @@ public class MainMenuScene : Scene
         );
 
         SavesLabel.Transform.Position = new(
-           SaveList.Transform.Position.X - (SaveList.Transform.Scale.X / 2f) + (SavesLabel.Transform.Scale.X / 2f),
+           SaveList.Transform.Position.X - (SaveList.Transform.Scale.X / 2f) + SavesLabel.Transform.Scale.X  - 7f,
            SaveList.Transform.Position.Y - (SavesLabel.Transform.Scale.Y / 2f) - (SaveList.Transform.Scale.Y / 2f) - 5f);
-
-        SaveList.RecalcLayout();
 
         ShowSettingsButton.Transform.Scale = new(32f, 32f);
         ShowSettingsButton.Transform.Position = new(
@@ -150,6 +147,14 @@ public class MainMenuScene : Scene
             12f + ShowSettingsButton.Transform.Scale.Y / 2f
         );
 
+        var SaveButtons = SaveList.ChildObjects.Where(x => x is SaveFileButton).ToList();
+        if (SaveButtons.Count > 0)
+        {
+            float maxHeight = LayoutHelper.CalculateMaxSize(SaveButtons).Y;
+            SaveButtons.ForEach(x => x.Transform.Scale = new(x.Transform.Scale.X, maxHeight));
+        }
+
+        SaveList.RecalcLayout();
     }
 
     public void CreateNewSave()
@@ -260,6 +265,9 @@ public class MainMenuScene : Scene
         NewSaveInputfield.SubmitAction += CreateNewSave;
         RefreshSaveFiles();
         RecalcLayout();
+
+        // Possible Cleanup from the last active save
+        TextureHandler.DisposeTextureLoadedFromPath();
     }
 
     public override void Dispose()

@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Managers;
 using Rendering.UI;
 using Silk.NET.OpenGL;
@@ -8,31 +9,44 @@ public static class OutlineRender
 {
     private static GL gl = null!;
     private static Shader? shader;
-    private static BufferObject<float> _vbo = null!;
+    private static BufferObject<OutlineVertex> _vbo = null!;
     private static BufferObject<uint> _ebo = null!;
-    private static VertexArrayObject<float, uint> _vao = null!;
-    private static List<float> _vertexData = [];
+    private static VertexArrayObject _vao = null!;
+    private static List<OutlineVertex> _vertexData = [];
     private static List<uint> _indices = [];
     private static Texture? NoiseTexture;
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    private struct OutlineVertex
+    {
+        public Vector3 Position;
+        public Vector2 TexCoord;
+        public Vector4 Color;
+    }
 
     public static void Init()
     {
         ShaderManager.TryGetShaderByName("Outline Shader", out shader);
         NoiseTexture = TextureHandler.GetEmbeddedTextureByName("noiseTexture-64x64.png");
         gl = ShaderManager.gl;
-        _vbo = new BufferObject<float>(gl, [], BufferTargetARB.ArrayBuffer);
+
+        _vbo = new BufferObject<OutlineVertex>(gl, [], BufferTargetARB.ArrayBuffer);
         _ebo = new BufferObject<uint>(gl, [], BufferTargetARB.ElementArrayBuffer);
-        _vao = new VertexArrayObject<float, uint>(gl, _vbo, _ebo);
+        _vao = new VertexArrayObject(gl);
 
-        SetupVertexAttributes();
+        _vao.Bind();
+        _vbo.Bind();
+        _ebo.Bind();
+
+        int stride = Marshal.SizeOf<OutlineVertex>();
+
+
+        _vao.SetVertexAttribute<OutlineVertex>(0, 3, VertexAttribPointerType.Float, stride, 0);
+        _vao.SetVertexAttribute<OutlineVertex>(1, 2, VertexAttribPointerType.Float, stride, Marshal.OffsetOf<OutlineVertex>(nameof(OutlineVertex.TexCoord)).ToInt32());
+        _vao.SetVertexAttribute<OutlineVertex>(2, 4, VertexAttribPointerType.Float, stride, Marshal.OffsetOf<OutlineVertex>(nameof(OutlineVertex.Color)).ToInt32());
+
     }
 
-    private static void SetupVertexAttributes()
-    {
-        _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 9, 0); // Position
-        _vao.VertexAttributePointer(1, 2, VertexAttribPointerType.Float, 9, 3); // UV
-        _vao.VertexAttributePointer(2, 4, VertexAttribPointerType.Float, 9, 5); // Color
-    }
 
     public static void Clear()
     {
@@ -40,7 +54,7 @@ public static class OutlineRender
         _indices.Clear();
     }
 
-    public static void AddOutlineToObjects(List<UIObject> targetObjects, float outlineThickness, Color color)
+    public static void AddOutlineToObjects(IEnumerable<UIObject> targetObjects, float outlineThickness, Color color)
     {
         foreach (var obj in targetObjects)
         {
@@ -76,7 +90,7 @@ public static class OutlineRender
         float innerTop = bounds.Top;
         float innerBottom = bounds.Bottom;
 
-        uint baseVertex = (uint)(_vertexData.Count / 9);
+        uint baseVertex = (uint)_vertexData.Count;
 
         // Create vertices for the outline "frame" - 8 vertices total
         // Outer vertices (0-3)
@@ -119,35 +133,20 @@ public static class OutlineRender
 
     private static void AddVertex(Vector3 position, Vector2 texCoord, Vector4 color)
     {
-        _vertexData.Add(position.X);
-        _vertexData.Add(position.Y);
-        _vertexData.Add(position.Z);
-        _vertexData.Add(texCoord.X);
-        _vertexData.Add(texCoord.Y);
-        _vertexData.Add(color.X);
-        _vertexData.Add(color.Y);
-        _vertexData.Add(color.Z);
-        _vertexData.Add(color.W);
+        _vertexData.Add(new()
+        {
+            Position = position,
+            TexCoord = texCoord,
+            Color = color
+        });
     }
 
-    private static unsafe void UpdateBuffers()
+    private static void UpdateBuffers()
     {
-        var vertexArray = _vertexData.ToArray();
-        var indexArray = _indices.ToArray();
+        if (_vertexData.Count == 0) return;
 
-        _vbo.Bind();
-        fixed (float* vertexPtr = vertexArray)
-        {
-            gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(vertexArray.Length * sizeof(float)), vertexPtr, BufferUsageARB.DynamicDraw);
-        }
-        _vbo.Unbind();
-
-        _ebo.Bind();
-        fixed (uint* indexPtr = indexArray)
-        {
-            gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint)(indexArray.Length * sizeof(uint)), indexPtr, BufferUsageARB.DynamicDraw);
-        }
-        _ebo.Unbind();
+        _vbo.BufferData(CollectionsMarshal.AsSpan(_vertexData));
+        _ebo.BufferData(CollectionsMarshal.AsSpan(_indices));
     }
 
     public static unsafe void Draw()
@@ -174,5 +173,6 @@ public static class OutlineRender
         _ebo?.Dispose();
         _vao?.Dispose();
     }
+
 
 }

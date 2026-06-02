@@ -85,7 +85,7 @@ public static class MouseHandler
 
     private  static void HandleLeftClick(IMouse mouse)
     {
-        _mouseDownObject = UIobjectHandler.GetObjectUnderMouse();
+        _mouseDownObject = UIobjectHandler.CurrentHoeverTarget;
         _dragStart = mouse.Position;
         _hasExceededDragThreshold = false;
 

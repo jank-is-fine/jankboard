@@ -12,34 +12,17 @@ namespace Managers
 
     public static class ShaderManager
     {
-        private static GL Gl = null!;
-        public static GL gl => Gl;
-        public static BufferObject<float> Vbo = null!;
-        public static BufferObject<uint> Ebo = null!;
-        public static VertexArrayObject<float, uint> Vao = null!;
+        public static GL gl = null!;
         private static List<Shader> Shaders = [];
         public static FontHandler FontHandler = null!;
 
-        public static readonly float[] Vertices =
-        [
-           // X      Y     Z     U     V
-            -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,  // Bottom-left
-             0.5f, -0.5f, 0.0f, 1.0f, 1.0f,  // Bottom-right
-             0.5f,  0.5f, 0.0f, 1.0f, 0.0f,  // Top-right
-             0.5f,  0.5f, 0.0f, 1.0f, 0.0f,  // Top-right
-            -0.5f,  0.5f, 0.0f, 0.0f, 0.0f,  // Top-left
-            -0.5f, -0.5f, 0.0f, 0.0f, 1.0f   // Bottom-left
-        ];
 
         public static void Init()
         {
-            Gl = GL.GetApi(WindowManager.window);
+            gl = GL.GetApi(WindowManager.window);
 
             Dictionary<string, (string, string)> ShaderDictonary = ShaderConfig.GetShaders();
 
-            Vbo = new BufferObject<float>(Gl, Vertices, BufferTargetARB.ArrayBuffer);
-            Ebo = new BufferObject<uint>(Gl, [], BufferTargetARB.ElementArrayBuffer);
-            Vao = new VertexArrayObject<float, uint>(Gl, Vbo, Ebo);
 
             foreach (var pair in ShaderDictonary)
             {
@@ -51,7 +34,7 @@ namespace Managers
                         continue;
                     }
 
-                    var shader = new Shader(pair.Key, Gl, pair.Value.Item1, pair.Value.Item2);
+                    var shader = new Shader(pair.Key, gl, pair.Value.Item1, pair.Value.Item2);
                     Shaders.Add(shader);
                 }
                 catch (Exception ex)
@@ -81,7 +64,7 @@ namespace Managers
                     Logger.Log("ShaderManager", "Default Font not found!", LogLevel.FATAL);
                     return;
                 }
-                TextRenderer.Init(Gl, defaultFontCollection, msdfShader);
+                TextRenderer.Init(gl, defaultFontCollection, msdfShader);
 
                 Logger.Log("ShaderManager", $"Text rendering initialized with font collection: {defaultFontCollection}", LogLevel.INFO);
             }
@@ -136,10 +119,6 @@ namespace Managers
 
         public static void Dispose()
         {
-            Vbo?.Dispose();
-            Ebo?.Dispose();
-            Vao?.Dispose();
-
             foreach (var shader in Shaders)
             {
                 shader?.Dispose();
@@ -147,7 +126,7 @@ namespace Managers
             Shaders.Clear();
             FontHandler?.Dispose();
             TextRenderer.Dispose();
-            Gl.Dispose();
+            gl.Dispose();
         }
     }
 }

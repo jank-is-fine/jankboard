@@ -12,7 +12,7 @@ public class SettingsScene : Scene
     private const float SETTING_PADDING = 15f;
     private const float MARGIN_PERCENT = 0.05f;
     private const float COLUMN_PADDING = 25f;
-    private const float COLOR_SWATCH_SIZE = 30f;
+    private const float COLOR_SWATCH_SIZE = 50f;
 
     private Dictionary<SettingGroupType, List<(string section, UIObject)>> SettingsGroups = [];
     private Dictionary<SettingGroupType, UIButton> ToggleButtons = [];
@@ -262,6 +262,14 @@ public class SettingsScene : Scene
         };
         AutoSaveSettings.RecalcSize();
 
+        SoundDevicesSetting soundDevicesSetting = new()
+        {
+            IsVisible = false,
+            RenderOrder = 3
+        };
+        SettingsGroups[SettingGroupType.Sound_Settings]?.Add(("Device", soundDevicesSetting));
+
+
         SettingsGroups[SettingGroupType.Font_Settings]?.Add(("", FontSizeSetting));
         SettingsGroups[SettingGroupType.Font_Settings]?.Add(("", Fontsetting));
 
@@ -271,7 +279,7 @@ public class SettingsScene : Scene
 
         SettingsGroups[SettingGroupType.Miscellaneous]?.Add(("Auto Save", AutoSaveSettings));
 
-        Children.AddRange([FontSizeSetting, Fontsetting, UndoStackLimitSetting, ConnectionSize, AutoSaveSettings]);
+        Children.AddRange([FontSizeSetting, Fontsetting, UndoStackLimitSetting, ConnectionSize, AutoSaveSettings, soundDevicesSetting]);
 
 
         Children.AddRange([.. ToggleButtons.Values.Where(x => x != null).Cast<UIObject>()]);
@@ -364,27 +372,32 @@ public class SettingsScene : Scene
 
     private void SetCurrentlyActive(SettingGroupType target)
     {
-        foreach (var setting in Children.OfType<SettingsColorUI>().ToList())
+        foreach (var setting in Children.OfType<SettingsColorUI>())
         {
             setting.IsVisible = false;
         }
 
-        foreach (var setting in Children.OfType<UIBooleanSetting>().ToList())
+        foreach (var setting in Children.OfType<UIBooleanSetting>())
         {
             setting.IsVisible = false;
         }
 
-        foreach (var setting in Children.OfType<VolumeSetting>().ToList())
+        foreach (var setting in Children.OfType<VolumeSetting>())
         {
             setting.IsVisible = false;
         }
 
-        foreach (var setting in Children.OfType<UIIntegerSetting>().ToList())
+        foreach (var setting in Children.OfType<SoundDevicesSetting>())
         {
             setting.IsVisible = false;
         }
 
-        foreach (var setting in Children.OfType<FontFamilySetting>().ToList())
+        foreach (var setting in Children.OfType<UIIntegerSetting>())
+        {
+            setting.IsVisible = false;
+        }
+
+        foreach (var setting in Children.OfType<FontFamilySetting>())
         {
             setting.IsVisible = false;
             setting.CloseList();
@@ -495,9 +508,9 @@ public class SettingsScene : Scene
                 {
                     setting.RecalcSize();
                 }
-                else
+                else if (setting is SoundDevicesSetting devicesSetting)
                 {
-                    setting.RecalcSize();
+                    devicesSetting.RefreshAudioDevices();                    
                 }
             }
         }

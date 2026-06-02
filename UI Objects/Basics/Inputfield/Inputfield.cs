@@ -3,12 +3,25 @@ using System.Numerics;
 using Silk.NET.OpenGL;
 using Managers;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace Rendering.UI
 {
     public partial class InputField : UIObject
     {
-        private VertexArrayObject<float, uint> _vao;
+        private BufferObject<RenderManager.ScreenVertex>? _vbo;
+        private BufferObject<uint>? _ebo;
+        private VertexArrayObject? _vao;
+
+        private static readonly RenderManager.ScreenVertex[] _quadVertices =
+        [
+            new() { Position = new Vector3(-0.5f, -0.5f, 0), UV = new Vector2(0, 0) },
+            new() { Position = new Vector3( 0.5f, -0.5f, 0), UV = new Vector2(1, 0) },
+            new() { Position = new Vector3( 0.5f,  0.5f, 0), UV = new Vector2(1, 1) },
+            new() { Position = new Vector3(-0.5f,  0.5f, 0), UV = new Vector2(0, 1) }
+        ];
+
+        private static readonly uint[] _quadIndices = [0, 1, 2, 0, 2, 3];
         public string Content { get; private set; } = "";
         public Action<string>? ContentChanged;
         public int MaxCharAmount = -1;
@@ -25,6 +38,21 @@ namespace Rendering.UI
 
         public InputField(bool nineSlice = false, Vector2? NineSliceBorder = null, string? placeholderText = null, bool adjustTextColor = false)
         {
+            _vbo = new BufferObject<RenderManager.ScreenVertex>(gl, _quadVertices, BufferTargetARB.ArrayBuffer);
+            _ebo = new BufferObject<uint>(gl, _quadIndices, BufferTargetARB.ElementArrayBuffer);
+            _vao = new VertexArrayObject(gl);
+
+            _vao.Bind();
+            _vbo.Bind();
+            _ebo.Bind();
+
+            int stride = Marshal.SizeOf<RenderManager.ScreenVertex>();
+            _vao.SetVertexAttribute<RenderManager.ScreenVertex>(0, 3, VertexAttribPointerType.Float, stride, 0);
+            _vao.SetVertexAttribute<RenderManager.ScreenVertex>(1, 2, VertexAttribPointerType.Float, stride,
+                Marshal.OffsetOf<RenderManager.ScreenVertex>(nameof(RenderManager.ScreenVertex.UV)).ToInt32());
+
+            _vao.Unbind();
+
             IsDraggable = false;
             if (nineSlice)
             {
@@ -39,9 +67,6 @@ namespace Rendering.UI
 
             Texture = TextureHandler.GetEmbeddedTextureByName("default.png");
 
-            _vao = new VertexArrayObject<float, uint>(ShaderManager.gl, ShaderManager.Vbo, ShaderManager.Ebo);
-            _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 5, 0);
-            _vao.VertexAttributePointer(1, 2, VertexAttribPointerType.Float, 5, 3);
             cursorImage = new(Texture, false)
             {
                 IsSelectable = false,
@@ -163,7 +188,7 @@ namespace Rendering.UI
             */
         }
 
-        public override void Render()
+        public unsafe override void Render()
         {
             if (!IsVisible) return;
 
@@ -181,7 +206,7 @@ namespace Rendering.UI
                 TextColor = Settings.TextColor;
             }
 
-            // BG
+            // Render background using shared VAO
             Shader?.Use();
             Shader?.SetUniform("uTexture0", 0);
             Shader?.SetUniform("uModel", Transform.ViewMatrix);
@@ -196,11 +221,11 @@ namespace Rendering.UI
                 Shader?.SetUniform("uBorderSize", _nineSliceBorder);
             }
 
-            _vao.Bind();
-            gl.DrawArrays(PrimitiveType.Triangles, 0, 6);
-            _vao.Unbind();
+            _vao?.Bind();
+            ShaderManager.gl.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, null);
+            _vao?.Unbind();
 
-
+            // Render text
             Vector2 textPos = new(
                 Transform.Position.X - Transform.Scale.X / 2f,
                 Transform.Position.Y + Transform.Scale.Y / 2f
@@ -208,7 +233,6 @@ namespace Rendering.UI
 
             if (Content.Length > 0)
             {
-                //txt
                 TextRenderer.RenderTextWorld(
                     Content,
                     textPos,
@@ -220,15 +244,15 @@ namespace Rendering.UI
             {
                 var placeholderTextColor = Settings.ColorToVec4(TextColor);
                 placeholderTextColor.W = 0.5f;
-
                 TextRenderer.RenderTextWorld(
-                 PlaceholderText,
-                 textPos,
-                 placeholderTextColor,
-                 Settings.TextSize
+                    PlaceholderText,
+                    textPos,
+                    placeholderTextColor,
+                    Settings.TextSize
                 );
             }
 
+            // Render cursor and selection
             if (IsSelected && _cursorVisible)
             {
                 RenderCursor();
@@ -242,7 +266,7 @@ namespace Rendering.UI
 
         public override void Dispose()
         {
-            _vao.Dispose();
+            //_vao.Dispose();
             UnsubActions();
         }
 
@@ -258,13 +282,13 @@ namespace Rendering.UI
 
             WindowManager.window.Update -= Update;
 
+            _keyRepeatTimer.Reset();
+            IsSelected = false;
+
             if (InputDeviceHandler.primaryKeyboard == null) { return; }
             InputDeviceHandler.primaryKeyboard.KeyDown -= HandleKeyPress;
             InputDeviceHandler.primaryKeyboard.KeyChar -= HandleTextInputKeydown;
             InputDeviceHandler.primaryKeyboard.KeyUp -= HandleKeyUp;
-
-            _keyRepeatTimer.Reset();
-            IsSelected = false;
         }
 
         public void SubActions()

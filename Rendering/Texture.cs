@@ -22,7 +22,7 @@ public class Texture : IDisposable
     public int Height { get; private set; }
     public bool IsAnimated => _isAnimated;
 
-    public Texture(byte[] textureData)
+    public Texture(byte[] textureData, bool DisableMipMaps = false)
     {
         _gl = ShaderManager.gl;
 
@@ -36,11 +36,11 @@ public class Texture : IDisposable
 
         if (collection.Count > 1)
         {
-            CreateAnimatedTexture(collection);
+            CreateAnimatedTexture(collection, false);
         }
         else
         {
-            CreateStaticTexture(collection[0]);
+            CreateStaticTexture(collection[0], DisableMipMaps);
         }
     }
 
@@ -54,19 +54,20 @@ public class Texture : IDisposable
             return;
         }
 
+        
         using var collection = new MagickImageCollection(path);
 
         if (collection.Count > 1)
         {
-            CreateAnimatedTexture(collection);
+            CreateAnimatedTexture(collection, false);
         }
         else
         {
-            CreateStaticTexture(collection[0]);
+            CreateStaticTexture(collection[0], false);
         }
     }
 
-    private unsafe void CreateAnimatedTexture(MagickImageCollection collection)
+    private unsafe void CreateAnimatedTexture(MagickImageCollection collection, bool DisableMipMaps)
     {
         _isAnimated = true;
         _frameHandles = [];
@@ -85,33 +86,38 @@ public class Texture : IDisposable
 
             _gl.BindTexture(TextureTarget.Texture2D, frameHandle);
 
-            _gl.TexImage2D(TextureTarget.Texture2D, 0, (int)InternalFormat.Rgba8,
-                (uint)Width, (uint)Height, 0,
-                PixelFormat.Rgba, PixelType.UnsignedByte, null);
-
             frame.Format = MagickFormat.Rgba;
             using var pixels = frame.GetPixels();
             var dataArray = pixels.ToByteArray(0, 0, (uint)Width, (uint)Height, "RGBA");
 
             if (dataArray == null) { return; }
-            int bytesPerRow = Width * 4;
-            for (int y = 0; y < Height; y++)
+
+            _gl.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
+
+            fixed (void* data = dataArray)
             {
-                fixed (void* data = &dataArray[y * bytesPerRow])
-                {
-                    _gl.TexSubImage2D(TextureTarget.Texture2D, 0, 0, y,
-                        (uint)Width, 1, PixelFormat.Rgba,
-                        PixelType.UnsignedByte, data);
-                }
+                _gl.TexImage2D(
+                    TextureTarget.Texture2D,
+                    0,
+                    (int)InternalFormat.Rgba8,
+                    (uint)Width,
+                    (uint)Height,
+                    0,
+                    PixelFormat.Rgba,
+                    PixelType.UnsignedByte,
+                    data
+                );
             }
 
-            SetParameters();
+            _gl.PixelStore(PixelStoreParameter.UnpackAlignment, 4);
+
+            SetTextureParameters(DisableMipMaps);
         }
         WindowManager.window.Update += Update;
         _handle = _frameHandles[0];
     }
 
-    private unsafe void CreateStaticTexture(IMagickImage<byte> image)
+    private unsafe void CreateStaticTexture(IMagickImage<byte> image, bool DisableMipMaps)
     {
         _isAnimated = false;
         _handle = _gl.GenTexture();
@@ -120,28 +126,32 @@ public class Texture : IDisposable
         Width = (int)image.Width;
         Height = (int)image.Height;
 
-        _gl.TexImage2D(TextureTarget.Texture2D, 0, (int)InternalFormat.Rgba8,
-            (uint)Width, (uint)Height, 0,
-            PixelFormat.Rgba, PixelType.UnsignedByte, null);
-
         image.Format = MagickFormat.Rgba;
         using var pixels = image.GetPixels();
         var dataArray = pixels.ToByteArray(0, 0, (uint)Width, (uint)Height, "RGBA");
 
         if (dataArray == null) { return; }
 
-        int bytesPerRow = Width * 4;
-        for (int y = 0; y < Height; y++)
+        _gl.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
+
+        fixed (void* data = dataArray)
         {
-            fixed (void* data = &dataArray[y * bytesPerRow])
-            {
-                _gl.TexSubImage2D(TextureTarget.Texture2D, 0, 0, y,
-                    (uint)Width, 1, PixelFormat.Rgba,
-                    PixelType.UnsignedByte, data);
-            }
+            _gl.TexImage2D(
+                TextureTarget.Texture2D,
+                0,
+                (int)InternalFormat.Rgba8,
+                (uint)Width,
+                (uint)Height,
+                0,
+                PixelFormat.Rgba,
+                PixelType.UnsignedByte,
+                data
+            );
         }
 
-        SetParameters();
+        _gl.PixelStore(PixelStoreParameter.UnpackAlignment, 4);
+
+        SetTextureParameters(DisableMipMaps);
     }
 
     public void Update(double deltaTime)
@@ -160,30 +170,60 @@ public class Texture : IDisposable
         }
     }
 
-    public void SetFrame(int frame)
+    private void SetTextureParameters(bool DisableMipMap)
     {
-        if (_isAnimated && _frameHandles != null && frame >= 0 && frame < _frameHandles.Count)
+        if (DisableMipMap)
         {
-            _currentFrame = frame;
-            _handle = _frameHandles[_currentFrame];
-            _frameTimer = 0;
+            SetNonMipMapParameters();
+        }
+        else
+        {
+            SetParameters();
         }
     }
 
-    public int GetCurrentFrameDelay() =>
-        _isAnimated && _frameDelays != null && _frameDelays.Count > 0
-            ? _frameDelays[_currentFrame]
-            : 0;
-
-    public int GetFrameCount() =>
-        _isAnimated && _frameHandles != null ? _frameHandles.Count : 1;
-
     private void SetParameters()
     {
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.Repeat);
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.Repeat);
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+        _gl.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS,
+            (int)GLEnum.Repeat);
+
+        _gl.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT,
+            (int)GLEnum.Repeat);
+
+        _gl.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter,
+            (int)GLEnum.LinearMipmapLinear);
+
+        _gl.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter,
+            (int)GLEnum.Linear);
+
+        _gl.GenerateMipmap(TextureTarget.Texture2D);
+    }
+
+    private void SetNonMipMapParameters()
+    {
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS,
+            (int)GLEnum.Repeat);
+
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT,
+            (int)GLEnum.Repeat);
+
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter,
+            (int)GLEnum.Linear);
+
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter,
+            (int)GLEnum.Linear);
     }
 
     public void Bind(TextureUnit textureSlot = TextureUnit.Texture0)

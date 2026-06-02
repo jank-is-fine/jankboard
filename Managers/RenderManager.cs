@@ -1,3 +1,5 @@
+using System.Numerics;
+using System.Runtime.InteropServices;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
@@ -20,25 +22,30 @@ namespace Managers
         private static uint MainColorTexture;
         private static string? LastScene;
 
-
-        private static readonly float[] Vertices =
+        private static readonly ScreenVertex[] Vertices =
         [
-            // X      Y     Z     U     V
-            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,  // Bottom-left
-             1.0f, -1.0f, 0.0f, 1.0f, 0.0f,  // Bottom-right
-             1.0f,  1.0f, 0.0f, 1.0f, 1.0f,  // Top-right
-             1.0f,  1.0f, 0.0f, 1.0f, 1.0f,  // Top-right
-            -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,  // Top-left
-            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f   // Bottom-left
+            new() { Position = new Vector3(-1.0f, -1.0f, 0.0f), UV = new Vector2(0.0f, 0.0f) },
+            new() { Position = new Vector3( 1.0f, -1.0f, 0.0f), UV = new Vector2(1.0f, 0.0f) },
+            new() { Position = new Vector3( 1.0f,  1.0f, 0.0f), UV = new Vector2(1.0f, 1.0f) },
+            new() { Position = new Vector3( 1.0f,  1.0f, 0.0f), UV = new Vector2(1.0f, 1.0f) },
+            new() { Position = new Vector3(-1.0f,  1.0f, 0.0f), UV = new Vector2(0.0f, 1.0f) },
+            new() { Position = new Vector3(-1.0f, -1.0f, 0.0f), UV = new Vector2(0.0f, 0.0f) }
         ];
 
-        public static BufferObject<float> ScreenVbo = null!;
+        public static BufferObject<ScreenVertex> ScreenVbo = null!;
         public static BufferObject<uint> ScreenEbo = null!;
-        public static VertexArrayObject<float, uint> ScreenVao = null!;
+        public static VertexArrayObject ScreenVao = null!;
 
         private static FinalPass finalPass = new();
 
         public static ConfirmationModal modal { get; private set; } = null!;
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public struct ScreenVertex
+        {
+            public Vector3 Position;
+            public Vector2 UV;
+        }
 
         public static void Init(List<Scene> AvailibleScenes)
         {
@@ -65,12 +72,18 @@ namespace Managers
         private static unsafe void InitFBO()
         {
             // https://learnopengl.com/Advanced-OpenGL/Framebuffers
-            ScreenVbo = new BufferObject<float>(Gl, Vertices, BufferTargetARB.ArrayBuffer);
+            ScreenVbo = new BufferObject<ScreenVertex>(Gl, Vertices, BufferTargetARB.ArrayBuffer);
             ScreenEbo = new BufferObject<uint>(Gl, [], BufferTargetARB.ElementArrayBuffer);
-            ScreenVao = new VertexArrayObject<float, uint>(Gl, ScreenVbo, ScreenEbo);
+            ScreenVao = new(Gl);
 
-            ScreenVao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 5, 0); // Position
-            ScreenVao.VertexAttributePointer(1, 2, VertexAttribPointerType.Float, 5, 3); // UV
+            ScreenVbo.Bind();
+            ScreenEbo.Bind();
+            ScreenVao.Bind();
+
+            int stride = Marshal.SizeOf<ScreenVertex>();
+
+            ScreenVao.SetVertexAttribute<ScreenVertex>(0, 3, VertexAttribPointerType.Float, stride, 0);
+            ScreenVao.SetVertexAttribute<ScreenVertex>(1, 2, VertexAttribPointerType.Float, stride, Marshal.OffsetOf<ScreenVertex>(nameof(ScreenVertex.UV)).ToInt32());
 
             ScreenVao.Unbind();
 
@@ -210,11 +223,27 @@ namespace Managers
 
         private static void OnRender(double deltaTime)
         {
-            if (Window.FramebufferSize == Vector2D<int>.Zero) return;
+            if (Window == null || Camera.ViewportSize == Vector2D<int>.Zero) return;
             ExecuteMainPass();
             ExecutePostPass();
             FPSCounter.Render();
         }
+
+        private static Vector2D<int> SafeFramebufferSize()
+{
+    if (Window == null)
+        return Vector2D<int>.Zero;
+
+    try
+    {
+        return Window.FramebufferSize;
+    }
+    catch (Silk.NET.SDL.SdlException e)
+    {
+        Logger.Log("RenderManager", $"Skipping framebuffer query: {e.Message}", LogLevel.WARNING);
+        return Vector2D<int>.Zero;
+    }
+}
 
         private static void ExecuteMainPass()
         {
@@ -295,6 +324,8 @@ namespace Managers
 
         public static void Dispose()
         {
+            if (Window == null) return;
+
             Window.Render -= OnRender;
             Window.FramebufferResize -= OnFramebufferResize;
 

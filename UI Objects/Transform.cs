@@ -17,14 +17,16 @@ public class Transform
 
     public Vector2 Position { get; set; } = new Vector2(0, 0);
     public Vector2 Scale { get; set; } = new Vector2(1f, 1f);
-    public Vector3 Rotation { get; set; } = Vector3.Zero;
+    public float Rotation { get; set; } = 0f;
 
     public Matrix4x4 ViewMatrix
     {
         get
         {
+            float rotationRad = Rotation * MathF.PI / 180f;
+
             var matrix = Matrix4x4.CreateScale(Scale.X, Scale.Y, 1f) *
-                        Matrix4x4.CreateFromYawPitchRoll(Rotation.X,Rotation.Y,Rotation.Z) *
+                        Matrix4x4.CreateRotationZ(rotationRad) *
                         Matrix4x4.CreateTranslation(Position.X, Position.Y, 0);
 
             return matrix;

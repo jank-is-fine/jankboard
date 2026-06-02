@@ -153,8 +153,8 @@ public class Settings
     [Setting("Base path for Logs", "", SettingGroupType.Miscellaneous, typeof(string), ignore: true, serialize: false)]
     public static string LogBasePath { get; } = $"Resources{Path.DirectorySeparatorChar}Logs";
 
-    [Setting("Enable VSync", "VSync", SettingGroupType.Miscellaneous, typeof(bool), ignore: true, serialize: false)]
-    public static bool VSyncEnabled = false;
+    [Setting("Enable VSync", "VSync", SettingGroupType.Miscellaneous, typeof(bool), serialize: true, Ignore = true)]
+    public static bool VSyncEnabled = true;
 
     public static void ToggleVSync()
     {
@@ -203,7 +203,7 @@ public class SettingsSave
         foreach (var field in settingsFields)
         {
             var settingsAttrib = field.GetCustomAttribute<SettingAttribute>();
-            if (settingsAttrib != null && !settingsAttrib.Serialize) { continue; }
+            if (settingsAttrib == null || !settingsAttrib.Serialize) { continue; }
             SettingsList.Add(field.Name, field.GetValue(null));
         }
     }

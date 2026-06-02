@@ -132,7 +132,7 @@ namespace Managers
 
             var newGroup = CreateNewGroupUI(group);
             groups.Add(group.guid, (group, newGroup));
-            newGroup.RecalcMinSize();
+            newGroup.RecalculateMinScaleSize();
             newGroup.RecalcSize();
 
             var action = new UndoRedoAction(
@@ -172,12 +172,12 @@ namespace Managers
                 RenderOrder = 0,
             };
 
-            uI.RecalcMinSize();
+            uI.RecalculateMinScaleSize();
             uI.Transform.Scale = group.Size;
-            uI.RecalcHandlerPos();
+            uI.UpdateHandlePositions();
             uI.OnDragResizeHandle(3);
 
-            ChunkManager.AddObject(uI);
+            UIobjectHandler.AddObject(uI);
             return uI;
         }
 

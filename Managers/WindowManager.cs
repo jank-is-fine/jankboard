@@ -56,7 +56,6 @@ namespace Managers
             InputDeviceHandler.Init(window);
             UIobjectHandler.Init();
 
-            ChunkManager.Init(1024);
             ShaderManager.Init();
 
             TextureHandler.GetAllTextures();
@@ -149,7 +148,7 @@ namespace Managers
             window.Closing -= OnClose;
 
             TextureHandler.Dispose();
-            ChunkManager.Clear();
+            UIobjectHandler.Clear();
             AudioHandler.Dispose();
             UIobjectHandler.Dispose();
             RenderManager.Dispose();

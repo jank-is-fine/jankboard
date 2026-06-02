@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.Numerics;
 using Managers;
 using Rendering.UI;
@@ -12,7 +11,7 @@ public class SaveFileButton : UIButton
     {
         Save = TargetSave;
         var saveName = Path.GetFileNameWithoutExtension(TargetSave);
-        SetText($"  {saveName}");
+        SetText($" {saveName}");
         TextAnchorPoint = TextAnchorPoint.Left_Center;
 
         void DeleteAction()
@@ -52,6 +51,23 @@ public class SaveFileButton : UIButton
     {
         base.RecalcSize();
         if (DeleteButton == null) { return; }
+
+        PositionButtons();
+    }
+
+    public void PositionButtons()
+    {
+        if (!IsVisible) { DeleteButton.IsVisible = false; return; }
+
+        DeleteButton.Transform.Position = new
+        (
+            Transform.Position.X + (Transform.Scale.X / 2f) - DeleteButton.Transform.Scale.X / 2f,
+            Transform.Position.Y
+        );
+
+        DeleteButton.TextureColor = TextHelper.GetContrastColor(TextureColor);
+        DeleteButton.RenderOrder = RenderOrder + 1;
+
         if (!DeleteButton._nineSlice)
         {
             DeleteButton.Transform.Scale = new(Transform.Scale.Y, Transform.Scale.Y);
@@ -63,19 +79,7 @@ public class SaveFileButton : UIButton
             DeleteButton.RecalcSize();
         }
 
-        Transform.Scale = new(Transform.Scale.X + DeleteButton.Transform.Scale.X, Transform.Scale.Y);
-    }
-
-    public void PositionButtons()
-    {
-        DeleteButton.Transform.Position = new
-        (
-            Transform.Position.X + (Transform.Scale.X / 2f) - DeleteButton.Transform.Scale.X / 2f,
-            Transform.Position.Y
-        );
-
-        DeleteButton.TextureColor = TextHelper.GetContrastColor(TextureColor);
-        DeleteButton.RenderOrder = RenderOrder + 1;
+        DeleteButton.IsVisible = true;
     }
 
     public override void Dispose()

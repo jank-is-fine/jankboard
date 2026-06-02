@@ -7,6 +7,7 @@ public class Entry(Guid parent, Vector2 targetPosition)
     public Guid guid = Guid.NewGuid();
     public string Content = string.Empty;
     public Vector2 position = targetPosition;
+    public Vector2 Size = new(100, 50);
     public EntryMark mark = EntryMark.NONE;
     public long SavedRenderKey = 0;
 }
