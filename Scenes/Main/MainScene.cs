@@ -19,14 +19,17 @@ public partial class MainScene : Scene
 
     public MainScene()
     {
-#pragma warning disable CS8604 // Possible null reference argument.
+        //these should exist, else ShaderManager would've thrown already
+        var nineSliceShader = ShaderManager.GetShaderByName("nine-slice-batched");
+        var batchedTextureShader = ShaderManager.GetShaderByName("Batched Texture");
+        var connectionShader = ShaderManager.GetShaderByName("connection-shader");
+        var nineSliceTex = TextureHandler.GetEmbeddedTextureByName("input_square.png");
 
-        EntryRenderBatch = new(ShaderManager.GetShaderByName("nine-slice-batched"), TextureHandler.GetEmbeddedTextureByName("input_square.png"));
-        GroupRenderBatch = new(ShaderManager.GetShaderByName("nine-slice-batched"), TextureHandler.GetEmbeddedTextureByName("input_square.png"));
-        ImageUIRenderBatch = new(ShaderManager.GetShaderByName("Batched Texture"));
-        ConnectionRenderBatch = new(ShaderManager.GetShaderByName("connection-shader"));
+        EntryRenderBatch = new(nineSliceShader, nineSliceTex);
+        GroupRenderBatch = new(nineSliceShader, nineSliceTex);
+        ImageUIRenderBatch = new(batchedTextureShader);
+        ConnectionRenderBatch = new(connectionShader);
 
-#pragma warning restore CS8604 // Possible null reference argument.
 
         EntryRenderBatch.NineSliceBorder = new(47, 47);
         GroupRenderBatch.NineSliceBorder = new(47, 47);
@@ -37,14 +40,14 @@ public partial class MainScene : Scene
         _temp.Clear();
         _temp.AddRange(toolbar.uIButtons);
         _temp.AddRange(ContextMenu.Instance.Options);
-        
+
         _temp.Add(BreadcrumbNav);
         if (BreadcrumbNav.IsVisible)
         {
             _temp.Add(BreadcrumbNav.StateToggle);
         }
         _temp.AddRange(BreadcrumbNav.BreadCrumbs);
-        
+
         _temp.Add(EntryManager.inputField);
         _temp.Add(GroupManager.inputField);
     }

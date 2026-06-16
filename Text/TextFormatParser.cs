@@ -4,8 +4,6 @@ using System.Drawing;
 /// <para>Parses formatted text with simple BBCODE-like tags</para>
 /// </summary>
 
-// Text-Align center etc is currently not feasable because the uiobject transform sizes are usually calculated based on text renderboxes
-// Use TextHelper.TextAnchorPoint instead and set transform sizes manually
 public static class TextFormatParser
 {
     public static ParsedText ParseText(string text)

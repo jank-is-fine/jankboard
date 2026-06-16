@@ -56,7 +56,16 @@ namespace Managers
             InputDeviceHandler.Init(window);
             UIobjectHandler.Init();
 
-            ShaderManager.Init();
+            try
+            {
+                ShaderManager.Init();
+            }
+            catch (Exception ex)
+            {
+                Logger.Log("ResourceManager", $"Critical resource load failed: {ex.Message}", LogLevel.FATAL);
+                window.Close();
+                return;
+            }
 
             TextureHandler.GetAllTextures();
 

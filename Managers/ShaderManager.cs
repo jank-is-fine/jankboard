@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Silk.NET.OpenGL;
 
 namespace Managers
@@ -20,26 +21,32 @@ namespace Managers
         public static void Init()
         {
             gl = GL.GetApi(WindowManager.window);
+            var shaderDict = ShaderConfig.GetShaders();
 
-            Dictionary<string, (string, string)> ShaderDictonary = ShaderConfig.GetShaders();
+            //validate for fast fail
+            var invalidShaders = shaderDict
+                .Where(p => string.IsNullOrEmpty(p.Value.Item1) || string.IsNullOrEmpty(p.Value.Item2))
+                .ToList();
 
+            if (invalidShaders.Any())
+            {
+                var names = string.Join(", ", invalidShaders.Select(p => $"'{p.Key}'"));
+                throw new InvalidOperationException(
+                    $"Cannot initialize ShaderManager: The following shaders have missing source paths: {names}"
+                );
+            }
 
-            foreach (var pair in ShaderDictonary)
+            foreach (var pair in shaderDict)
             {
                 try
                 {
-                    if (string.IsNullOrEmpty(pair.Value.Item1) || string.IsNullOrEmpty(pair.Value.Item2))
-                    {
-                        Logger.Log("ShaderManager", $"Shader: {pair} has null or empty fields", LogLevel.WARNING);
-                        continue;
-                    }
-
                     var shader = new Shader(pair.Key, gl, pair.Value.Item1, pair.Value.Item2);
                     Shaders.Add(shader);
                 }
                 catch (Exception ex)
                 {
-                    Logger.Log("ShaderManager", $"Failed to load shader {pair.Value}: {ex.Message}", LogLevel.FATAL);
+                    Logger.Log("ShaderManager", $"Failed to compile/load shader '{pair.Key}': {ex.Message}", LogLevel.FATAL);
+                    throw; // re-throw to stop initialization
                 }
             }
 
@@ -97,24 +104,25 @@ namespace Managers
         }
 
 
-        public static bool TryGetShaderByName(string ShaderName, out Shader? shader)
+        public static bool TryGetShaderByName(string shaderName, [MaybeNullWhen(false)] out Shader shader)
         {
             shader = null;
 
-            Shader? FoundShader = Shaders.Find(x => x.ShaderName == ShaderName);
+            Shader? foundShader = Shaders.Find(x => x.ShaderName == shaderName);
 
-            if (FoundShader != null)
+            if (foundShader != null)
             {
-                shader = FoundShader;
+                shader = foundShader;
                 return true;
             }
 
             return false;
         }
 
-        public static Shader? GetShaderByName(string ShaderName)
+        public static Shader GetShaderByName(string ShaderName)
         {
-            return Shaders.Find(x => x.ShaderName == ShaderName);
+            var shader = Shaders.FirstOrDefault(s => s.ShaderName == ShaderName) ?? throw new InvalidOperationException($"Shader '{ShaderName}' not found. Did Init() succeed?");
+            return shader; 
         }
 
         public static void Dispose()
