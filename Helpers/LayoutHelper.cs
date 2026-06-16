@@ -53,8 +53,19 @@ public static class LayoutHelper
         Vector2 pos = startPos;
         foreach (var element in elements)
         {
-            element.Transform.Position = pos + element.Transform.Scale / 2;
+            element.Transform.Position = pos + element.Transform.Scale / 2f;
             pos.X += element.Transform.Scale.X + spacing;
+        }
+    }
+
+    public static void HorizontalReverse<T>(List<T> elements, Vector2 startPos, float spacing)
+        where T : UIObject
+    {
+        Vector2 pos = startPos;
+        foreach (var element in elements)
+        {
+            element.Transform.Position = new(pos.X - element.Transform.Scale.X / 2f, pos.Y + element.Transform.Scale.Y / 2f);
+            pos.X -= element.Transform.Scale.X + spacing;
         }
     }
 

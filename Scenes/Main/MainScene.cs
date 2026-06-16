@@ -37,7 +37,14 @@ public partial class MainScene : Scene
         _temp.Clear();
         _temp.AddRange(toolbar.uIButtons);
         _temp.AddRange(ContextMenu.Instance.Options);
+        
         _temp.Add(BreadcrumbNav);
+        if (BreadcrumbNav.IsVisible)
+        {
+            _temp.Add(BreadcrumbNav.StateToggle);
+        }
+        _temp.AddRange(BreadcrumbNav.BreadCrumbs);
+        
         _temp.Add(EntryManager.inputField);
         _temp.Add(GroupManager.inputField);
     }
@@ -197,7 +204,6 @@ public partial class MainScene : Scene
     {
         toolbar.HideSubMenus();
         ContextMenu.Instance.Hide();
-        BreadcrumbNav.RecalcSize();
     }
 
 

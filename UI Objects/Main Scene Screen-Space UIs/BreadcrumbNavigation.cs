@@ -1,34 +1,73 @@
-using System.Numerics;
 using Managers;
 using Rendering.UI;
 
 public class Breadcrumb : UIImage
 {
-    private int BreadcrumbLimit = 3; //3 past and +1 the root layer as default
     private const float Padding = 10f;
-    public Breadcrumb() : base(screenSpace: true, nineSlice: true) { UpdateCrumbLimit(); }
+    public bool minimized { get; private set; } = false;
+
+    private UIButton rootButton = new
+    (
+        "[b]Go back to Root[/b]",
+        [() => EntryManager.LoadEntryLayer(null)]
+    )
+    { IsDraggable = false };
+
+    private UIButton ellipsebutton = new
+    (
+        "[b]...[/b]",
+        [() => EntryManager.LoadEntryLayer(null)],
+        textAnchorPoint: TextAnchorPoint.Center_Center
+    )
+    { IsDraggable = false, IsSelectable = false };
+
+    private Texture? MinimizeTexture = TextureHandler.GetEmbeddedTextureByName("check_square_grey_cross-edited.png");
+    private Texture? MaximizeTexture = TextureHandler.GetEmbeddedTextureByName("up.png");
+    public UIButton StateToggle { get; private set; }
+
+    public List<UIObject> BreadCrumbs { get; private set; } = [];
+
+    public Breadcrumb() : base(screenSpace: true, nineSlice: true)
+    {
+        StateToggle = new UIButton(" ", [], nineSlice: false, recalcSize: false)
+        {
+            IsScreenSpace = true,
+            IsDraggable = false,
+            RenderOrder = 51,
+            Texture = MinimizeTexture,
+            Transform = { Scale = new(32f, 32f) }
+        };
+
+        StateToggle.actions.AddRange(
+        [
+            () => minimized = !minimized,
+            () => StateToggle.Texture = minimized ? MaximizeTexture : MinimizeTexture,
+            () => RecalcSize(),
+        ]);
+
+        rootButton.RecalcSize();
+        ellipsebutton.RecalcSize();
+        RecalcSize();
+        StateToggle.Transform.Scale = new(Transform.Scale.Y, Transform.Scale.Y);
+
+        ChildObjects.AddRange(rootButton, ellipsebutton);
+    }
 
     public void Clear()
     {
-        foreach (var child in ChildObjects)
+        foreach (var child in BreadCrumbs)
         {
             child.IsVisible = false;
             child.Dispose();
         }
-        ChildObjects.Clear();
+        BreadCrumbs.Clear();
         IsSelectable = false;
-    }
-
-    private void UpdateCrumbLimit()
-    {
-        var regularWidth = TextHelper.GetFormattedTextWidth($"[b]{new string('A', 15)}[/b]");
-
-        BreadcrumbLimit = (int)float.Floor(Transform.Scale.X / regularWidth) - 1; // - 1 for the "MoreButton"/ellipse indicator
     }
 
     public void UpdateCrumbNavigation(Guid targetEntryGuid)
     {
-        Clear(); UpdateCrumbLimit();
+        Clear();
+
         if (targetEntryGuid == Guid.Empty)
         {
             IsVisible = false;
@@ -37,9 +76,6 @@ public class Breadcrumb : UIImage
 
         IsVisible = true;
 
-        List<UIButton> breadcrumbs = [];
-        Guid? currentGuid = targetEntryGuid;
-
         Entry? currentEntry = EntryManager.GetEntryByGuid(targetEntryGuid);
         if (currentEntry == null)
         {
@@ -47,94 +83,145 @@ public class Breadcrumb : UIImage
             return;
         }
 
-        currentGuid = currentEntry.ParentEntryGuid;
+        var entriesStartingAtTarget = EntryManager.GetHiarchyFromGuid(currentEntry.ParentEntryGuid);
 
-        for (int i = 0; i < BreadcrumbLimit; i++)
+        var entriesStartingFromRoot = entriesStartingAtTarget.AsEnumerable().Reverse().ToList();
+
+        float neededWidth = entriesStartingAtTarget.Count * (rootButton.Transform.Scale.X + Padding) + StateToggle.Transform.Scale.X + (Padding * 2);
+
+        bool ellipseNeeded = neededWidth > Transform.Scale.X - StateToggle.Transform.Scale.X;
+        ellipsebutton.IsVisible = ellipseNeeded;
+
+        float availableForCrumbs = Transform.Scale.X;
+        availableForCrumbs -= rootButton.Transform.Scale.X;
+        availableForCrumbs -= ellipseNeeded ? ellipsebutton.Transform.Scale.X : 0;
+        availableForCrumbs -= StateToggle.Transform.Scale.X;
+        availableForCrumbs -= Padding * 4;
+        availableForCrumbs = Math.Max(0, availableForCrumbs);
+
+        if (ellipseNeeded)
         {
-            if (currentGuid == Guid.Empty || currentGuid == default)
-            {
-                break;
-            }
+            // start from target in direction to root, stop when we do not have space left
+            // that way we get N last ancestors until we run out of space 
 
-            Entry? entry = EntryManager.GetEntryByGuid((Guid)currentGuid);
-            if (entry == null)
-            {
-                break;
-            }
+            BreadCrumbs =
+            [
+                ..
+                CreateCrumbButtons
+                (
+                    entriesStartingAtTarget,
+                    maxTotalWidth: availableForCrumbs
+                )
+            ];
 
-            string buttonContent = entry.Content;
-            buttonContent = buttonContent.Replace('\n', ' ');
+            LayoutHelper.Horizontal
+            (
+                [rootButton, ellipsebutton, .. BreadCrumbs.AsEnumerable().Reverse()], // reverse the order to start with the oldest ancestor to display
+                new
+                (
+                    Transform.Position.X + 5f - Transform.Scale.X / 2f,
+                    Transform.Position.Y - rootButton.Transform.Scale.Y / 2f
+                ),
+                Padding
+            );
+        }
+        else
+        {
+            BreadCrumbs = [.. CreateCrumbButtons(entriesStartingFromRoot)];
 
-            if (buttonContent.Length > 15)
-            {
-                buttonContent = buttonContent[..15] + "...";
-            }
-
-            var navButton = new UIButton(buttonContent, [() => EntryManager.LoadEntryLayer(entry.guid)])
-            {
-                IsDraggable = false
-            };
-            navButton.RecalcSize();
-
-            breadcrumbs.Add(navButton);
-
-            currentGuid = entry.ParentEntryGuid;
-
-            if (!EntryManager.DoesEntryExist((Guid)currentGuid))
-            {
-                break;
-            }
+            LayoutHelper.Horizontal
+            (
+                [rootButton, .. BreadCrumbs],
+                new
+                (
+                    Transform.Position.X + 5f - Transform.Scale.X / 2f,
+                    Transform.Position.Y - rootButton.Transform.Scale.Y / 2f
+                ),
+                Padding
+            );
         }
 
-        var rootButton = new UIButton("[b]Back to Root[/b]", [() => EntryManager.LoadEntryLayer(null)])
-        {
-            IsDraggable = false
-        };
-        ChildObjects.Add(rootButton);
-
-        if (breadcrumbs.Count >= BreadcrumbLimit && currentGuid != Guid.Empty && currentGuid != default)
-        {
-            var MoreButton = new UIButton("[b]...[/b]", [() => EntryManager.LoadEntryLayer(null)], textAnchorPoint: TextAnchorPoint.Center_Center)
-            {
-                IsDraggable = false,
-                IsSelectable = false
-            };
-            MoreButton.RecalcSize();
-
-            ChildObjects.Add(MoreButton);
-        }
-
-        breadcrumbs.Reverse();
-        ChildObjects.AddRange(breadcrumbs);
-
-        foreach (var btn in ChildObjects)
-        {
-            btn.RecalcSize();
-        }
-
-        RecalcSize();
     }
+
+    private string GetButtonText(Entry entry)
+    {
+        ParsedText parsed;
+
+        if (entry.Content.Length >= 50)
+        {
+            parsed = TextFormatParser.ParseText(entry.Content[..50]);
+        }
+        else
+        {
+            parsed = TextFormatParser.ParseText(entry.Content);
+        }
+
+        var rawText = string.Concat(parsed.lines.SelectMany(line => line.lineSegments.Select(segment => segment.Text)));
+
+        return rawText.Length > 15 ? rawText[..12] + "..." : rawText;
+    }
+
+    private List<UIButton> CreateCrumbButtons(List<Entry> entries, float maxTotalWidth = float.MaxValue)
+    {
+        var buttons = new List<UIButton>();
+        float accumulatedWidth = 0;
+        float buttonSpacing = rootButton.Transform.Scale.X + Padding;
+
+        foreach (var entry in entries)
+        {
+            if (maxTotalWidth < float.MaxValue && accumulatedWidth + buttonSpacing > maxTotalWidth) { break; }
+
+            string displayText = GetButtonText(entry);
+            var button = new UIButton(displayText, [() => EntryManager.LoadEntryLayer(entry.guid)]);
+            button.SetScale(rootButton.Transform.Scale);
+            buttons.Add(button);
+
+            accumulatedWidth += buttonSpacing;
+        }
+
+        return buttons;
+    }
+
 
 
     public override void RecalcSize()
     {
-        if (ChildObjects.Count < 1) { return; }
-        Vector2 buttonMaxSize = LayoutHelper.CalculateMaxSize(ChildObjects);
+        rootButton.RecalcSize();
+        ellipsebutton.SetScale(rootButton.Transform.Scale);
 
-        ChildObjects.ForEach(x => x.Transform.Scale = buttonMaxSize);
-
-        Transform.Scale = new(Camera.ViewportSize.X * 0.9f, buttonMaxSize.Y + Padding * 2f);
-
+        Transform.Scale = new(Camera.ViewportSize.X * 0.9f, rootButton.Transform.Scale.Y + Padding * 2f);
         Transform.Position = new(Camera.ViewportSize.X / 2f, Camera.ViewportSize.Y - (Padding * 2f) - Transform.Scale.Y / 2f);
 
-        LayoutHelper.Horizontal(ChildObjects, new(Transform.Position.X + 5f - Transform.Scale.X / 2f, Transform.Position.Y - buttonMaxSize.Y / 2f), Padding);
-    }
+        StateToggle.Transform.Scale = new(Transform.Scale.Y, Transform.Scale.Y);
+        StateToggle.Transform.Position = new
+        (
+            Transform.Position.X + (Transform.Scale.X / 2f) - StateToggle.Transform.Scale.X / 2f,
+            Transform.Position.Y
+        );
 
+        UpdateCrumbNavigation(EntryManager.CurrentParentEntry);
+    }
 
     public override void Render()
     {
+        if (minimized && IsVisible)
+        {
+            StateToggle.Render();
+            return;
+        }
+
+        if (!IsVisible)
+        {
+            return;
+        }
+
         base.Render();
-        foreach (var child in ChildObjects)
+
+        StateToggle.Render();
+        rootButton.Render();
+        ellipsebutton.Render();
+
+        foreach (var child in BreadCrumbs)
         {
             child.Render();
         }
@@ -144,6 +231,11 @@ public class Breadcrumb : UIImage
     {
         base.Dispose();
         Clear();
-    }
 
+        foreach (var child in ChildObjects)
+        {
+            child.Dispose();
+        }
+        ChildObjects.Clear();
+    }
 }

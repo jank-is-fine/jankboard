@@ -5,7 +5,7 @@ namespace Rendering.UI
 {
     public class UIButton : UIImage
     {
-        public string ButtonContent { get; private set; } = "";
+        public string ButtonContent { get; private set; } = "Button";
         ParsedText ParsedText;
         public List<Action> actions = [];
         public bool AdjustTextColor;
@@ -88,6 +88,8 @@ namespace Rendering.UI
 
         public override void Render()
         {
+            if (!IsVisible) { return; }
+            
             if (GetButtonColorAuto)
             {
                 TextureColor = Settings.ButtonBGColor;

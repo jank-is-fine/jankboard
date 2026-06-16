@@ -82,6 +82,7 @@ namespace Managers
             CurrentlyEditingGroup = null;
             inputField.IsVisible = false;
             inputField.Transform.Position = new(5000, 5000);
+            inputField.ClearSelectionState();
         }
 
         public static void CancelEditing()
@@ -93,6 +94,7 @@ namespace Managers
             CurrentlyEditingGroup = null;
             inputField.IsVisible = false;
             inputField.Transform.Position = new(5000, 5000);
+            inputField.ClearSelectionState();
         }
 
         public static void LoadFromSave(List<Group> TargetGroups)

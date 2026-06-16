@@ -71,6 +71,7 @@ namespace Managers
             CurrentlyEditingEntry = null;
             inputField.IsVisible = false;
             inputField.Transform.Position = new(5000, 5000);
+            inputField.ClearSelectionState();
         }
 
         public static void CancelEditing()
@@ -83,6 +84,7 @@ namespace Managers
 
             inputField.IsVisible = false;
             inputField.Transform.Position = new(5000, 5000);
+            inputField.ClearSelectionState();
         }
 
         public static void LoadFromSave(List<Entry> TargetEntries)
@@ -172,14 +174,35 @@ namespace Managers
                     RenderManager.ChangeScene("MainMenu");
                 }
             }
+        }
 
-            //stress test
-            /*
-            for(int i = 0 ; i< 10000; i++)
+        public static void LoadLastSelectedEntryLayer()
+        {
+            var LastSelected = SelectionManager.GetSelectedTypeOfObject<EntryUI>().LastOrDefault();
+            if(LastSelected == default || LastSelected == null ) return;
+
+            LoadEntryLayer(LastSelected.ReferenceEntry.guid);
+        }
+
+        public static List<Entry> GetHiarchyFromGuid(Guid EntryToStart, int depth = 120)
+        {
+            List<Entry> foundEntries = [];
+
+            Guid currentEntryGuid = EntryToStart;
+
+            for(int i = 0; i <= depth + 1; i++)
             {
-                CreateNewEntry(null);
+                if(currentEntryGuid == Guid.Empty) break;
+                
+                var foundEntry = GetEntryByGuid(currentEntryGuid);
+                if(foundEntry == null) break;
+
+                foundEntries.Add(foundEntry);
+                currentEntryGuid = foundEntry.ParentEntryGuid;
             }
-            */
+
+
+            return foundEntries;
         }
 
         public static void CreateNewEntry(Vector2? targetPos)

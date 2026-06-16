@@ -93,7 +93,10 @@ namespace Rendering.UI
             (
                 button: ContextButton
                 (
-                    "Enter Entry", [() => EntryManager.LoadEntryLayer(SelectionManager.GetSelectedTypeOfObject<EntryUI>().Last().ReferenceEntry.guid)]
+                    "Enter Entry", 
+                    [
+                        () =>  EntryManager.LoadLastSelectedEntryLayer()
+                    ]
                 ),
                 categories: [typeof(EntryUI)]
             );

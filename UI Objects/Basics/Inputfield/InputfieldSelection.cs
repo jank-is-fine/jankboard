@@ -23,6 +23,8 @@ namespace Rendering.UI
         private int _dragStartPosition = 0;
         private (int, int, string)? lastSelection = null;
 
+        public void ClearSelectionState() => lastSelection = null;
+
         private void SetCursorFromWorldPosition(Vector2 worldPos)
         {
             float localX = worldPos.X - (Transform.Position.X - Transform.Scale.X / 2f);

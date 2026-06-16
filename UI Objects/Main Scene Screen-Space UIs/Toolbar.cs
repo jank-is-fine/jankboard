@@ -6,9 +6,12 @@ using Silk.NET.Windowing;
 
 public class Toolbar : UIImage
 {
-    public List<UIButton> uIButtons = [];
+    private bool minimized = false;
+    private List<UIButton> AlluIButtons = [];
+    public List<UIButton> uIButtons => minimized ? [StateToggle] : AlluIButtons;
     float maxHeight = 0;
     private const float Button_Margin = 5f;
+
 
     #region Toolbar Buttons
 
@@ -87,6 +90,11 @@ public class Toolbar : UIImage
         }
     };
 
+    Texture? MinimizeTexture = TextureHandler.GetEmbeddedTextureByName("check_square_grey_cross-edited.png");
+    Texture? MaximizeTexture = TextureHandler.GetEmbeddedTextureByName("down.png");
+    UIButton StateToggle;
+
+
     UIButtonList CreateList;
 
     #endregion Toolbar Buttons
@@ -106,7 +114,33 @@ public class Toolbar : UIImage
             RenderOrder = 51
         };
 
-        uIButtons.AddRange([ResetView, CreateList, Save, SettingsButton]);
+        StateToggle = new
+        (
+            " ",
+            [],
+            nineSlice: false,
+            recalcSize: false
+        )
+        {
+            IsScreenSpace = true,
+            IsDraggable = false,
+            RenderOrder = 51,
+            Texture = MinimizeTexture,
+            Transform =
+            {
+                Scale = new(32f,32f)
+            }
+        };
+
+        StateToggle.actions.AddRange
+        (
+            [
+                () => minimized = !minimized,
+                () => StateToggle.Texture = minimized ? MaximizeTexture : MinimizeTexture
+            ]
+        );
+
+        uIButtons.AddRange([ResetView, CreateList, Save, SettingsButton, StateToggle]);
         window.FramebufferResize += OnFramebufferResize;
         IsScreenSpace = true;
         TextureColor = Color.Gray;
@@ -138,29 +172,31 @@ public class Toolbar : UIImage
 
         LayoutHelper.Horizontal
         (
-            [.. uIButtons.Except([SettingsButton, Save])],
+            [.. uIButtons.Except([SettingsButton, Save, StateToggle])],
             new(Button_Margin + bounds.Left, bounds.Top + Button_Margin),
             Button_Margin * 2f
         );
 
         SettingsButton.SetScale(new(maxHeight, maxHeight));
+        StateToggle.SetScale(new(maxHeight, maxHeight));
         Save.Transform.Scale = new(maxHeight, maxHeight);
 
-        SettingsButton.Transform.Position = new
+        LayoutHelper.HorizontalReverse
         (
-            -Button_Margin + bounds.Right - SettingsButton.Transform.Scale.X / 2f,
-            bounds.Top + (SettingsButton.Transform.Scale.Y / 2f) + Button_Margin
-        );
-
-        Save.Transform.Position = new
-        (
-            SettingsButton.Bounds.Left - (Save.Transform.Scale.X / 2f) - Button_Margin * 2f,
-            SettingsButton.Transform.Position.Y
+            [StateToggle, SettingsButton, Save],
+            new(bounds.Right - Button_Margin, bounds.Top + Button_Margin),
+            Button_Margin * 2f
         );
     }
 
     public override void Render()
     {
+        if (minimized)
+        {
+            StateToggle.Render();
+            return;
+        }
+
         TextureColor = Settings.ToolbarBackgroundColor;
 
         base.Render();
@@ -185,8 +221,8 @@ public class Toolbar : UIImage
     public override void Dispose()
     {
         base.Dispose();
-        
-        foreach(var child in ChildObjects)
+
+        foreach (var child in ChildObjects)
         {
             child?.Dispose();
         }
